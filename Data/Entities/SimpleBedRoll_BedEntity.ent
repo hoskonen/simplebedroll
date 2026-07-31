@@ -1,0 +1,4 @@
+<Entity
+    Name="SimpleBedRoll_BedEntity"
+    Script="Scripts/Entities/SimpleBedRoll_BedEntity.lua"
+/>

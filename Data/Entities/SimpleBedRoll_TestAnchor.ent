@@ -1,4 +1,0 @@
-<Entity
-    Name="SimpleBedRoll_TestAnchor"
-    Script="Scripts/Entities/SimpleBedRoll_TestAnchor.lua"
-/>
