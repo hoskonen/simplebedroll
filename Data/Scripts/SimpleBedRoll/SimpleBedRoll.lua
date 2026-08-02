@@ -1,6 +1,9 @@
+Script.ReloadScript("Scripts/SimpleBedRoll/Config.lua")
+
 SimpleBedRoll = SimpleBedRoll or {}
 
 local SBR = SimpleBedRoll
+local TEST_ANCHOR_CLASS = "SimpleBedRoll_VisualAnchor"
 
 SBR.Test = SBR.Test or {
     anchor = nil,
@@ -126,7 +129,7 @@ function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
     end
 
     local spawnParams = {
-        class = "SimpleBedRoll_TestAnchor",
+        class = TEST_ANCHOR_CLASS,
         name = "SimpleBedRoll_TestAnchor",
         position = spawnPosition,
         properties = {
@@ -222,11 +225,21 @@ local SBR = SimpleBedRoll
 SBR.FunctionalTest = SBR.FunctionalTest or {
     bed = nil,
     trigger = nil,
+    visualAnchor = nil,
+    modelPath = nil,
 }
 
 local FUNCTIONAL_BED_CLASS = "SimpleBedRoll_BedEntity"
 local FUNCTIONAL_BED_NAME = "SimpleBedRoll_TestBed"
 local FUNCTIONAL_TRIGGER_NAME = "SimpleBedRoll_TestBedTrigger"
+local FUNCTIONAL_VISUAL_CLASS = "SimpleBedRoll_VisualAnchor"
+local FUNCTIONAL_VISUAL_NAME = "SimpleBedRoll_TestBedVisual"
+
+local visualConfig = SimpleBedRoll_Config.Visual or {}
+local FUNCTIONAL_VISUAL_MODEL_PATH = tostring(
+    visualConfig.ModelPath
+    or "Objects/manmade/common_furniture/beds/low/bed_makeshift_a.cgf"
+)
 
 local BED_DISTANCE = 1.0
 
@@ -420,8 +433,19 @@ local function functionalRemoveExistingEntities()
         end
     end
 
+    if SBR.FunctionalTest.visualAnchor then
+        if not deleteOnce(
+            SBR.FunctionalTest.visualAnchor,
+            "tracked visual prop"
+        ) then
+            success = false
+        end
+    end
+
     SBR.FunctionalTest.trigger = nil
     SBR.FunctionalTest.bed = nil
+    SBR.FunctionalTest.visualAnchor = nil
+    SBR.FunctionalTest.modelPath = nil
 
     -- Development cleanup for entities whose Lua references were lost,
     -- for example after a script reload.
@@ -452,6 +476,24 @@ local function functionalRemoveExistingEntities()
         end
     end
 
+    local visualAnchors = functionalFindEntitiesByClass(
+        FUNCTIONAL_VISUAL_CLASS
+    )
+
+    for _, anchor in ipairs(visualAnchors) do
+        if anchor
+            and anchor.GetName
+            and anchor:GetName() == FUNCTIONAL_VISUAL_NAME then
+
+            if not deleteOnce(
+                anchor,
+                "orphaned visual prop"
+            ) then
+                success = false
+            end
+        end
+    end
+
     return success
 end
 
@@ -464,7 +506,13 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
         return false
     end
 
-    functionalRemoveExistingEntities()
+    if not functionalRemoveExistingEntities() then
+        functionalLog(
+            "spawn failed: previous deployment could not be removed"
+        )
+
+        return false
+    end
 
     local playerEntity = functionalGetPlayer()
 
@@ -492,6 +540,69 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
             bedPosition.z,
             angleZ
         )
+    )
+
+    local visualParams = {
+        class = FUNCTIONAL_VISUAL_CLASS,
+        name = FUNCTIONAL_VISUAL_NAME,
+        position = functionalCopyPosition(bedPosition),
+
+        properties = {
+            Position = functionalCopyPosition(bedPosition),
+
+            Angles = {
+                x = 0,
+                y = 0,
+                z = angleZ,
+            },
+
+            object_Model = FUNCTIONAL_VISUAL_MODEL_PATH,
+
+            bSaved_by_game = 1,
+            bSerialize = 1,
+        },
+    }
+
+    local visualOk, visualOrError = pcall(
+        System.SpawnEntity,
+        visualParams
+    )
+
+    if not visualOk then
+        functionalLog(
+            "visual prop spawn raised an error: "
+            .. tostring(visualOrError)
+        )
+
+        return false
+    end
+
+    local visualAnchor = visualOrError
+
+    if not visualAnchor or not visualAnchor.id then
+        functionalLog(
+            "visual prop spawn failed: no entity returned"
+        )
+
+        return false
+    end
+
+    SBR.FunctionalTest.visualAnchor = visualAnchor
+    SBR.FunctionalTest.modelPath = FUNCTIONAL_VISUAL_MODEL_PATH
+
+    if visualAnchor.SetAngles then
+        visualAnchor:SetAngles({
+            x = 0,
+            y = 0,
+            z = angleZ,
+        })
+    end
+
+    functionalLog(
+        "visual prop spawned id="
+        .. tostring(visualAnchor.id)
+        .. " modelPath="
+        .. FUNCTIONAL_VISUAL_MODEL_PATH
     )
 
     local bedParams = {
@@ -530,6 +641,7 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
             .. tostring(bedOrError)
         )
 
+        functionalRemoveExistingEntities()
         return false
     end
 
@@ -540,6 +652,7 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
             "bed spawn failed: no entity returned"
         )
 
+        functionalRemoveExistingEntities()
         return false
     end
 
@@ -684,6 +797,7 @@ function SimpleBedRoll.RemoveFunctionalTestBed()
     local hadTrackedEntities =
         SBR.FunctionalTest.bed ~= nil
         or SBR.FunctionalTest.trigger ~= nil
+        or SBR.FunctionalTest.visualAnchor ~= nil
 
     local removed = functionalRemoveExistingEntities()
 
@@ -700,9 +814,11 @@ end
 function SimpleBedRoll.FunctionalTestBedStatus()
     local bed = SBR.FunctionalTest.bed
     local trigger = SBR.FunctionalTest.trigger
+    local visualAnchor = SBR.FunctionalTest.visualAnchor
 
     local bedExists = functionalEntityExists(bed)
     local triggerExists = functionalEntityExists(trigger)
+    local visualExists = functionalEntityExists(visualAnchor)
 
     functionalLog(
         "status bedTracked="
@@ -717,9 +833,17 @@ function SimpleBedRoll.FunctionalTestBedStatus()
         .. tostring(triggerExists)
         .. " triggerId="
         .. tostring(trigger and trigger.id or nil)
+        .. " visualTracked="
+        .. tostring(visualAnchor ~= nil)
+        .. " visualExists="
+        .. tostring(visualExists)
+        .. " visualId="
+        .. tostring(visualAnchor and visualAnchor.id or nil)
+        .. " modelPath="
+        .. tostring(SBR.FunctionalTest.modelPath)
     )
 
-    return bedExists and triggerExists
+    return bedExists and triggerExists and visualExists
 end
 
 function SimpleBedRoll.TestStatus()

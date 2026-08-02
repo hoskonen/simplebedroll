@@ -1,0 +1,4 @@
+<Entity
+    Name="SimpleBedRoll_VisualAnchor"
+    Script="Scripts/Entities/SimpleBedRoll_VisualAnchor.lua"
+/>
