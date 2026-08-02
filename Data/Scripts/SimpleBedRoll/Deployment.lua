@@ -13,6 +13,7 @@ SBR.FunctionalTest = SBR.FunctionalTest or {
 
 local FUNCTIONAL_BED_CLASS = "SimpleBedRoll_BedEntity"
 local FUNCTIONAL_BED_NAME = "SimpleBedRoll_TestBed"
+local FUNCTIONAL_TRIGGER_CLASS = "BedTrigger"
 local FUNCTIONAL_TRIGGER_NAME = "SimpleBedRoll_TestBedTrigger"
 local FUNCTIONAL_VISUAL_CLASS = "SimpleBedRoll_VisualAnchor"
 local FUNCTIONAL_VISUAL_NAME = "SimpleBedRoll_TestBedVisual"
@@ -24,6 +25,9 @@ local FUNCTIONAL_VISUAL_MODEL_PATH = tostring(
 )
 
 local triggerConfig = SimpleBedRoll_Config.Trigger or {}
+local BED_TRIGGER_PACK_HINT = tostring(
+    triggerConfig.PackHint or "@ui_pickup_item"
+)
 local BED_TRIGGER_OFFSET = triggerConfig.Offset or {
     x = 0.15,
     y = -0.09,
@@ -43,6 +47,7 @@ local function functionalLog(message)
 end
 
 local Placement = SBR.Placement
+local BedTriggerBehavior = SBR.BedTrigger
 
 local function functionalEntityExists(entity)
     if not entity or not entity.id then
@@ -178,7 +183,9 @@ local function functionalRemoveExistingEntities()
 
     -- Development cleanup for entities whose Lua references were lost,
     -- for example after a script reload.
-    local triggers = functionalFindEntitiesByClass("BedTrigger")
+    local triggers = functionalFindEntitiesByClass(
+        FUNCTIONAL_TRIGGER_CLASS
+    )
 
     for _, trigger in ipairs(triggers) do
         if trigger
@@ -401,7 +408,7 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
     }
 
     local triggerParams = {
-        class = "BedTrigger",
+        class = FUNCTIONAL_TRIGGER_CLASS,
         name = FUNCTIONAL_TRIGGER_NAME,
         position = triggerPosition,
         scale = BED_TRIGGER_SCALE,
@@ -420,6 +427,17 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
 
                 esActionType = "Stance",
                 sAction = "lying",
+            },
+
+            Hold = {
+                bIsActive = true,
+                UseMessage = BED_TRIGGER_PACK_HINT,
+
+                bAllowNoOwner = 1,
+                bCheckOwner = 0,
+
+                esActionType = "None",
+                sAction = "",
             },
         },
     }
@@ -452,9 +470,23 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
 
     SBR.FunctionalTest.trigger = trigger
 
+    if not BedTriggerBehavior
+        or not BedTriggerBehavior.Attach
+        or not BedTriggerBehavior.Attach(trigger) then
+
+        functionalLog(
+            "trigger setup failed: bedroll behavior not attached"
+        )
+
+        functionalRemoveExistingEntities()
+        return false
+    end
+
     functionalLog(
         "trigger spawned id="
         .. tostring(trigger.id)
+        .. " class="
+        .. FUNCTIONAL_TRIGGER_CLASS
         .. " pos="
         .. string.format(
             "%.2f, %.2f, %.2f",

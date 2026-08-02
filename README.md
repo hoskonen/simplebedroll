@@ -27,8 +27,8 @@ Verified working in game:
 
 - Spawning a visible vanilla makeshift bed model in front of Henry.
 - Spawning a custom invisible bed entity with low sleep quality.
-- Spawning the native `BedTrigger` interaction.
-- Linking the trigger and bed in both directions.
+- Spawning the native `BedTrigger` baseline.
+- Linking the native trigger and bed in both directions.
 - Showing the native **Sleep** prompt.
 - Sleeping through the native sleeping system.
 - Tracking the visual prop, functional bed, and trigger during the active Lua
@@ -39,7 +39,9 @@ Verified working in game:
 Not implemented or not yet verified:
 
 - Player-facing deployment without a console command.
-- Packing through an in-world interaction or inventory action.
+- Attaching the bedroll behavior adapter to a native `BedTrigger`, preserving
+  **Sleep**, and using its held **Pick up** action (implemented in source,
+  awaiting in-game verification).
 - Inventory requirements or consumption of a bedroll item.
 - Terrain height and slope alignment.
 - Obstruction and unsuitable-location checks.
@@ -108,12 +110,28 @@ The deployed bedroll is composed of three entities with different jobs:
    vanilla makeshift-bed CGF.
 2. **Functional bed** -- an invisible `SimpleBedRoll_BedEntity` supplies the bed
    smart-object data, sleep quality, and native use request.
-3. **Interaction trigger** -- a native `BedTrigger` displays the Sleep prompt and
-   points to the functional bed.
+3. **Interaction trigger** -- a native `BedTrigger` displays **Sleep**, exposes a
+   held **Pick up** action, and points to the functional bed. Simple Bedroll
+   attaches its pack handler only to this spawned trigger instance.
 
 The trigger links to the bed with an unnamed link. The bed links back to the
-trigger as `mTrigger`. The visual entity deliberately has no responsibility for
-sleeping; this keeps rendering and game functionality independently testable.
+trigger as `mTrigger`. Click behavior still runs through vanilla `BedTrigger`,
+including its sleep eligibility checks. Holding **Pick up** calls the deployment
+cleanup and removes the trigger, functional bed, and visual prop together. The
+temporary label uses the vanilla `@ui_pickup_item` localization key; a later text
+table can rename it to **Pack bedroll**.
+
+The visual entity deliberately has no responsibility for sleeping; this keeps
+rendering and game functionality independently testable. The behavior override
+is scoped to the deployed trigger instance, so it does not modify other native
+or vanilla beds.
+
+An earlier iteration registered a new `.ent` class that copied the Lua
+`BedTrigger` table. The entity spawned and linked without a Lua error, but the
+game exposed neither Sleep nor Pick up. Native trigger interaction registration
+is therefore treated as engine-owned state that Lua table composition alone does
+not inherit. The current design keeps the registered native entity class and
+changes only the one instance's `ReportUse` handler.
 
 The current visual model is:
 
@@ -169,6 +187,7 @@ simplebedroll/
     │   │   ├── SimpleBedRoll_BedEntity.lua
     │   │   └── SimpleBedRoll_VisualAnchor.lua
     │   ├── SimpleBedRoll/
+    │   │   ├── BedTrigger.lua
     │   │   ├── Config.lua
     │   │   ├── Deployment.lua
     │   │   ├── DevTools.lua
@@ -191,6 +210,8 @@ Current responsibilities:
   and cleanup for a complete bedroll deployment.
 - `DevTools.lua` owns isolated prefab experiments and their status/cleanup tools.
 - `SimpleBedRoll_BedEntity.lua` implements the invisible native sleeping object.
+- `BedTrigger.lua` attaches the bedroll-only pack handler to the deployed native
+  trigger while delegating Sleep back to the vanilla implementation.
 - `SimpleBedRoll_VisualAnchor.lua` implements the visible persistent prop.
 - `Research/campingmod` contains reference material and is not original Simple
   Bedroll runtime code.
@@ -201,6 +222,7 @@ The first behavior-preserving modular split uses this runtime structure:
 
 ```text
 Scripts/SimpleBedRoll/
+├── BedTrigger.lua          # native trigger instance behavior
 ├── Config.lua
 ├── SimpleBedRoll.lua       # public API and coordination
 ├── Deployment.lua          # spawn, link, remove, recover
@@ -249,7 +271,20 @@ Candidates to investigate:
 The preferred option should feel native while keeping installation and runtime
 requirements light.
 
-### 5. Inventory-aware optional equipment
+### 5. Survival crafting and inventory policy
+
+A promising direction is to treat the camp as a temporary survival craft rather
+than a permanent convenience item. Deployment could require believable materials
+such as branches and fabric. Packing after use could return reusable parts while
+partly consuming or damaging expendable materials, making preparation and supply
+management part of every journey.
+
+This should be implemented as a separate inventory policy around deployment and
+packing. The trigger and sleeping entities should not contain item-manager logic.
+That boundary keeps recipe experiments, vanilla item GUIDs, custom items, and
+optional LuaUtils support replaceable without destabilizing native sleep.
+
+### 6. Inventory-aware optional equipment
 
 Deployment may later react to equipment Henry actually carries. For example, if
 the player has suitable firewood, Simple Bedroll could optionally place one
@@ -257,8 +292,9 @@ small open cooking fire beside the bedroll. This should remain an explicit,
 compact addition rather than expanding automatically into a large campsite.
 
 Other inventory-backed ideas can be evaluated under the same rule: equipment
-should be modest, believable, independently removable, and never required for
-the basic sleeping feature.
+should be modest, believable, and independently removable. Whether the bedroll's
+basic recipe is mandatory should be decided after reliable inventory checks and
+transaction-safe consume/return behavior have been prototyped.
 
 ## LuaUtils investigation
 
@@ -294,11 +330,12 @@ For each placement iteration:
 1. Spawn the bedroll while facing several directions.
 2. Confirm the model is visible and rests on the ground.
 3. Confirm the Sleep prompt appears at the model.
-4. Sleep and inspect Henry's position and orientation.
-5. Check `FunctionalTestBedStatus()`.
-6. Remove the deployment.
-7. Confirm no visual prop, bed, or trigger remains.
-8. Repeat after a script reload and eventually after save/load.
+4. Confirm a held **Pick up** action appears only on the custom bedroll.
+5. Sleep and inspect Henry's position and orientation.
+6. Check `FunctionalTestBedStatus()`.
+7. Hold **Pick up** and confirm the complete deployment disappears.
+8. Confirm no visual prop, bed, or trigger remains.
+9. Repeat after a script reload and eventually after save/load.
 
 Useful log prefixes:
 
@@ -306,6 +343,7 @@ Useful log prefixes:
 [SimpleBedRoll]
 [SimpleBedRoll/FunctionalTest]
 [SimpleBedRoll/BedEntity]
+[SimpleBedRoll/BedTrigger]
 ```
 
 ## References and credits

@@ -7,6 +7,9 @@ SimpleBedRoll_Config = {
     },
 
     Trigger = {
+        -- Uses a vanilla localization key until the mod has its own text table.
+        PackHint = "@ui_pickup_item",
+
         Offset = {
             x = 0.15,
             y = -0.09,
