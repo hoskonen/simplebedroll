@@ -35,7 +35,6 @@ Verified working in game:
   session.
 - Removing all three components cleanly.
 - Finding and removing orphaned development entities after a script reload.
-- Keeping the loose development files and `Data/simplebedroll.pak` synchronized.
 
 Not implemented or not yet verified:
 
@@ -171,6 +170,9 @@ simplebedroll/
     │   │   └── SimpleBedRoll_VisualAnchor.lua
     │   ├── SimpleBedRoll/
     │   │   ├── Config.lua
+    │   │   ├── Deployment.lua
+    │   │   ├── DevTools.lua
+    │   │   ├── Placement.lua
     │   │   └── SimpleBedRoll.lua
     │   └── Systems/
     │       └── simplebedroll_init.lua
@@ -181,18 +183,21 @@ simplebedroll/
 Current responsibilities:
 
 - `simplebedroll_init.lua` loads the main module and binds gameplay startup.
-- `Config.lua` stores data-only settings such as the visual model path.
-- `SimpleBedRoll.lua` currently contains placement, spawning, linking, cleanup,
-  status reporting, and prefab experiments.
+- `Config.lua` stores data-only placement, trigger, and visual settings.
+- `SimpleBedRoll.lua` is the small composition root: it creates the public table,
+  loads the modules in dependency order, and handles gameplay startup.
+- `Placement.lua` finds Henry and calculates the current bed position and heading.
+- `Deployment.lua` owns functional spawning, entity linking, status, recovery,
+  and cleanup for a complete bedroll deployment.
+- `DevTools.lua` owns isolated prefab experiments and their status/cleanup tools.
 - `SimpleBedRoll_BedEntity.lua` implements the invisible native sleeping object.
 - `SimpleBedRoll_VisualAnchor.lua` implements the visible persistent prop.
 - `Research/campingmod` contains reference material and is not original Simple
   Bedroll runtime code.
 
-## Planned restructuring
+## Module boundaries
 
-After the visible-model prototype is merged, the main script should be divided
-into modules with one clear responsibility each. A likely structure is:
+The first behavior-preserving modular split uses this runtime structure:
 
 ```text
 Scripts/SimpleBedRoll/
@@ -200,13 +205,12 @@ Scripts/SimpleBedRoll/
 ├── SimpleBedRoll.lua       # public API and coordination
 ├── Deployment.lua          # spawn, link, remove, recover
 ├── Placement.lua           # position, terrain, rotation, obstruction checks
-├── Inventory.lua           # item requirements, consume and return operations
-├── Persistence.lua         # save/load recovery and relinking
 └── DevTools.lua            # help, status, probes, experimental commands
 ```
 
-The exact split should follow actual responsibilities as they are implemented;
-empty abstraction layers should not be added merely to match this outline.
+`Inventory.lua` and `Persistence.lua` should be added later only when those
+responsibilities contain real behavior. Empty abstraction layers should not be
+created merely to match a planned directory tree.
 
 ## Roadmap
 
@@ -271,22 +275,14 @@ important.
 
 ## Building the development PAK
 
-The game loads the packaged files from `Data/simplebedroll.pak`. During current
-development, update it from the `Data` directory with:
+The game loads the packaged files from `Data/simplebedroll.pak`. Development
+builds are created with **KCD2 PAK Builder** using its single-click build action.
+Codex edits and verifies the loose source files but does not rebuild the PAK;
+run the builder after reviewing a source change and before testing it in game.
 
-```powershell
-7z u -tzip -mx=9 simplebedroll.pak Entities Scripts Research
-```
-
-Before a public release, create a fresh archive so older research entries cannot
-remain inside it. From the `Data` directory:
-
-```powershell
-7z a -tzip -mx=9 simplebedroll-runtime.pak Entities Scripts
-```
-
-Inspect that new archive and install it as `simplebedroll.pak` only after its
-contents have been verified.
+For a public build, include only runtime content from `Data/Entities` and
+`Data/Scripts`. Exclude `Data/Research` and ensure the output PAK is not included
+inside itself.
 
 After adding or changing an `.ent` entity definition, restart the game instead
 of relying only on Lua script reloads.
