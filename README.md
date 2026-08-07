@@ -31,6 +31,8 @@ Verified working in game:
 - Linking the native trigger and bed in both directions.
 - Showing the native **Sleep** prompt.
 - Sleeping through the native sleeping system.
+- Attaching the bedroll behavior adapter to one native trigger instance.
+- Showing the held **Pick up** action and using it to pack the deployment.
 - Tracking the visual prop, functional bed, and trigger during the active Lua
   session.
 - Removing all three components cleanly.
@@ -39,14 +41,10 @@ Verified working in game:
 Not implemented or not yet verified:
 
 - Player-facing deployment without a console command.
-- Attaching the bedroll behavior adapter to a native `BedTrigger`, preserving
-  **Sleep**, and using its held **Pick up** action (implemented in source,
-  awaiting in-game verification).
 - Inventory requirements or consumption of a bedroll item.
 - Terrain height and slope alignment.
 - Obstruction and unsuitable-location checks.
 - Save/load reconstruction and trigger relinking.
-- A stable public command layer such as `sbr_spawn` and `sbr_help`.
 - Release packaging that excludes research-only files.
 
 ## Prototype installation
@@ -63,23 +61,29 @@ access is required until a player-facing deployment method is implemented.
 
 ## Development commands
 
-The current prototype is controlled through the KCD2 Lua console.
+The current prototype is controlled through short commands in the KCD2 Lua
+console:
 
-Spawn the complete visible and functional test bed:
+```lua
+#sbr_help()
+#sbr_spawn()
+#sbr_status()
+#sbr_remove()
+#sbr_probe_entities()
+#sbr_probe_entities(5)
+```
+
+`sbr_help()` prints the complete command list in game. The entity probe scans a
+sphere around Henry, defaults to a 2-metre radius, and is limited to 20 metres to
+avoid accidental heavy queries. Results are ordered by distance and include each
+entity's class, name, ID, position, angles, model property, and links.
+
+The original long-form deployment functions remain available for research and
+compatibility:
 
 ```lua
 #SimpleBedRoll.SpawnFunctionalTestBed()
-```
-
-Report whether the visual prop, functional bed, and trigger still exist:
-
-```lua
 #SimpleBedRoll.FunctionalTestBedStatus()
-```
-
-Remove the complete test deployment:
-
-```lua
 #SimpleBedRoll.RemoveFunctionalTestBed()
 ```
 
@@ -91,16 +95,6 @@ bed deployment path:
 #SimpleBedRoll.TestStatus()
 #SimpleBedRoll.RemoveTestPrefab()
 ```
-
-These names are temporary development APIs. A later developer-tools module is
-planned with short commands such as:
-
-- `sbr_help()` -- list available commands and examples in game.
-- `sbr_spawn()` -- deploy the current test bedroll.
-- `sbr_remove()` -- remove the deployed bedroll.
-- `sbr_status()` -- summarize tracked deployment state.
-- `sbr_probe_entities(radius)` -- inspect nearby entity names, classes,
-  transforms, models, and links.
 
 ## How the prototype works
 
@@ -208,7 +202,8 @@ Current responsibilities:
 - `Placement.lua` finds Henry and calculates the current bed position and heading.
 - `Deployment.lua` owns functional spawning, entity linking, status, recovery,
   and cleanup for a complete bedroll deployment.
-- `DevTools.lua` owns isolated prefab experiments and their status/cleanup tools.
+- `DevTools.lua` owns command help, stable short wrappers, nearby-entity probes,
+  and isolated prefab experiments.
 - `SimpleBedRoll_BedEntity.lua` implements the invisible native sleeping object.
 - `BedTrigger.lua` attaches the bedroll-only pack handler to the deployed native
   trigger while delegating Sleep back to the vanilla implementation.
@@ -238,9 +233,9 @@ created merely to match a planned directory tree.
 
 ### 1. Developer tooling
 
-- Add `sbr_help()` so commands can be discovered in game.
-- Add stable short wrappers around the current test functions.
-- Add `sbr_probe_entities(radius)` for nearby entity research.
+- Verify `sbr_help()` and the stable short wrappers in game.
+- Exercise `sbr_probe_entities(radius)` in forests, settlements, interiors, near
+  water, and around existing beds to learn which entity data is dependable.
 - Improve status output with transforms, model paths, and entity links.
 
 ### 2. Placement
@@ -344,6 +339,8 @@ Useful log prefixes:
 [SimpleBedRoll/FunctionalTest]
 [SimpleBedRoll/BedEntity]
 [SimpleBedRoll/BedTrigger]
+[SimpleBedRoll/Help]
+[SimpleBedRoll/EntityProbe]
 ```
 
 ## References and credits
