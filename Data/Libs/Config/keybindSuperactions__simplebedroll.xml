@@ -1,0 +1,10 @@
+<keybinds>
+	<superaction name="simplebedroll_make_camp" ui_group="general" ui_name="simplebedroll_ui_keybind" ui_tooltip="" keyboard="writeable">
+		<action name="simplebedroll_make_camp" map="interaction" />
+		<control input="b" controller="keyboard" />
+	</superaction>
+
+	<conflict name="general">
+		<superaction name="simplebedroll_make_camp" />
+	</conflict>
+</keybinds>

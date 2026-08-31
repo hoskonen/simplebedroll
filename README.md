@@ -66,6 +66,7 @@ console:
 
 ```lua
 #sbr_help()
+#sbr_give_bedroll()
 #sbr_spawn()
 #sbr_status()
 #sbr_remove()
@@ -77,6 +78,8 @@ console:
 sphere around Henry, defaults to a 2-metre radius, and is limited to 20 metres to
 avoid accidental heavy queries. Results are ordered by distance and include each
 entity's class, name, ID, position, angles, model property, and links.
+`sbr_give_bedroll(quantity, health)` adds the custom bedroll item class to
+Henry's inventory; quantity defaults to 1 and health defaults to 1.0.
 
 The original long-form deployment functions remain available for research and
 compatibility:
@@ -86,6 +89,15 @@ compatibility:
 #SimpleBedRoll.FunctionalTestBedStatus()
 #SimpleBedRoll.RemoveFunctionalTestBed()
 ```
+
+When the custom Simple Bedroll misc item is dropped into the world, the
+prototype adds a held **Make camp** action beside the normal Pick up action. This
+milestone only logs the world entity ID, item ID, class/name, and position; it
+does not deploy the bed.
+The interaction action is `simplebedroll_make_camp`, exposed as a writable
+General keybind named `simplebedroll_ui_keybind`. The default keyboard binding is
+`B`; controller binding follows the secondary-interaction face button used by
+Take or Eat, `Y` / Triangle.
 
 There is also a lower-level prefab research tool. It is not part of the normal
 bed deployment path:

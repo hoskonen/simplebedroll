@@ -1,0 +1,8 @@
+<Table>
+    <Row><Cell>ui_nm_bedroll</Cell><Cell>Lay out bedroll</Cell><Cell>Lay out bedroll</Cell></Row>
+
+    <Row><Cell>ui_in_bedroll</Cell><Cell>A simple blanket rolled for travel. Enough for a night's rest beneath the open sky.</Cell><Cell>A simple blanket rolled for travel. Enough for a night's rest beneath the open sky.</Cell></Row>
+
+    <Row><Cell>simplebedroll_ui_make_camp</Cell><Cell>Make Camp</Cell><Cell>Make Camp</Cell></Row>
+    <Row><Cell>simplebedroll_ui_keybind</Cell><Cell>Make camp</Cell><Cell>Make camp</Cell></Row>
+</Table>

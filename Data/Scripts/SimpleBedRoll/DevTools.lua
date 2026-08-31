@@ -4,6 +4,7 @@ SimpleBedRoll = SimpleBedRoll or {}
 
 local SBR = SimpleBedRoll
 local TEST_ANCHOR_CLASS = "SimpleBedRoll_VisualAnchor"
+local BEDROLL_ITEM_CLASS_ID = "7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11"
 
 SBR.Test = SBR.Test or {
     anchor = nil,
@@ -138,6 +139,60 @@ local function getPlayer()
         or System.GetEntityByName("dude")
 end
 
+local function getPlayerInventory()
+    local playerEntity = getPlayer()
+
+    if not playerEntity and System and System.GetEntity and g_localActorId then
+        local ok, entity = pcall(System.GetEntity, g_localActorId)
+        if ok then
+            playerEntity = entity
+        end
+    end
+
+    if not playerEntity and player then
+        playerEntity = player
+    end
+
+    if not playerEntity then
+        return nil
+    end
+
+    if playerEntity.inventory then
+        return playerEntity.inventory
+    end
+
+    if playerEntity.GetInventory then
+        local ok, inventory = pcall(
+            playerEntity.GetInventory,
+            playerEntity
+        )
+
+        if ok then
+            return inventory
+        end
+    end
+
+    return nil
+end
+
+local function getInventoryCount(inventory, classId)
+    if not inventory or not inventory.GetCountOfClass then
+        return nil
+    end
+
+    local ok, count = pcall(
+        inventory.GetCountOfClass,
+        inventory,
+        classId
+    )
+
+    if not ok or type(count) ~= "number" then
+        return nil
+    end
+
+    return math.floor(count + 0.00001)
+end
+
 local function getSpawnPosition(playerEntity, distance)
     if not playerEntity
         or not playerEntity.GetWorldPos
@@ -200,6 +255,82 @@ local function deleteAnchor()
     return true
 end
 
+
+function SimpleBedRoll.GiveBedrollItem(quantity, health)
+    quantity = math.floor(tonumber(quantity) or 1)
+    health = tonumber(health) or 1.0
+
+    if quantity < 1 then
+        quantity = 1
+    end
+
+    if quantity > 20 then
+        log("GiveBedrollItem quantity limited from " .. quantity .. " to 20")
+        quantity = 20
+    end
+
+    if health > 1 then
+        health = health / 100.0
+    end
+
+    if health < 0 then
+        health = 0
+    elseif health > 1 then
+        health = 1
+    end
+
+    local inventory = getPlayerInventory()
+
+    if not inventory then
+        log("GiveBedrollItem failed: player inventory unavailable")
+        return false
+    end
+
+    if not inventory.CreateItem then
+        log("GiveBedrollItem failed: inventory.CreateItem unavailable")
+        return false
+    end
+
+    local before = getInventoryCount(inventory, BEDROLL_ITEM_CLASS_ID)
+    local ok, result = pcall(
+        inventory.CreateItem,
+        inventory,
+        BEDROLL_ITEM_CLASS_ID,
+        health,
+        quantity
+    )
+
+    if not ok then
+        log("GiveBedrollItem failed: CreateItem raised " .. tostring(result))
+        return false
+    end
+
+    local after = getInventoryCount(inventory, BEDROLL_ITEM_CLASS_ID)
+    local verified = before ~= nil and after ~= nil and after >= before + quantity
+
+    if Game and Game.ShowItemsTransfer then
+        pcall(Game.ShowItemsTransfer, BEDROLL_ITEM_CLASS_ID, quantity)
+    end
+
+    log(
+        "GiveBedrollItem classId="
+        .. BEDROLL_ITEM_CLASS_ID
+        .. " quantity="
+        .. tostring(quantity)
+        .. " health="
+        .. tostring(health)
+        .. " result="
+        .. tostring(result)
+        .. " before="
+        .. tostring(before)
+        .. " after="
+        .. tostring(after)
+        .. " verified="
+        .. tostring(verified)
+    )
+
+    return verified or (before == nil and after == nil and result ~= false)
+end
 
 function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
     prefabGuid = tostring(prefabGuid or "")
@@ -461,6 +592,7 @@ function SimpleBedRoll.Help()
     helpLog("Simple Bedroll development commands:")
     helpLog("#sbr_help() - show this command list")
     helpLog("#sbr_spawn() - deploy the visible functional bedroll")
+    helpLog("#sbr_give_bedroll(quantity, health) - add the bedroll item to Henry")
     helpLog("#sbr_remove() - remove the active bedroll")
     helpLog("#sbr_status() - report deployment entity state")
     helpLog(
@@ -483,6 +615,10 @@ end
 
 function sbr_spawn()
     return SimpleBedRoll.SpawnFunctionalTestBed()
+end
+
+function sbr_give_bedroll(quantity, health)
+    return SimpleBedRoll.GiveBedrollItem(quantity, health)
 end
 
 function sbr_remove()

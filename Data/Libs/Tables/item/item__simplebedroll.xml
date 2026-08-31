@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<database xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="barbora" xsi:noNamespaceSchemaLocation="item.xsd">
+	<ItemClasses version="8">
+		<MiscItem Type="5" IconId="sabotazLazni_fleabittenQuilt" UIInfo="ui_in_bedroll" UIName="ui_nm_bedroll" IsQuestItem="false" DisplayInShop="false" Model="manmade/task_specific_props/clothing_industry/tailoring/cloth_folded_a.cgf" Weight="3" Price="270" FadeCoef="1" VisibilityCoef="1" Id="7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11" Name="Bedroll" />
+	</ItemClasses>
+</database>

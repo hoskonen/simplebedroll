@@ -1,0 +1,5 @@
+<profile version="0">
+	<actionmap name="interaction" priority="pure_include" exclusivity="0">
+		<action name="simplebedroll_make_camp" onPress="1" onRelease="1" onHold="1" holdTriggerDelay="0.45" holdRepeatDelay="-1" keyboard="_keybinds_ref_" xboxpad="xi_y" pspad="pad_triangle" />
+	</actionmap>
+</profile>
