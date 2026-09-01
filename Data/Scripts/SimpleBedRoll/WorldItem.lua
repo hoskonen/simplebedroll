@@ -149,6 +149,29 @@ function WorldItem.OnMakeCamp(entity, user)
         return true
     end
 
+    if not (SimpleBedRoll.Bedding
+        and SimpleBedRoll.Bedding.HasRequiredBedding) then
+
+        log("Make camp aborted: bedding module unavailable")
+        return true
+    end
+
+    local hasBedding, beddingCountOrReason =
+        SimpleBedRoll.Bedding.HasRequiredBedding(user)
+
+    if not hasBedding then
+        if SimpleBedRoll.Bedding.NotifyMissingBedding then
+            SimpleBedRoll.Bedding.NotifyMissingBedding()
+        end
+
+        log(
+            "Make camp aborted: required bedding missing countOrReason="
+            .. tostring(beddingCountOrReason)
+        )
+
+        return true
+    end
+
     if not SimpleBedRoll.SpawnFunctionalTestBed then
         log("Make camp aborted: deployment API unavailable")
         return true
@@ -166,6 +189,14 @@ function WorldItem.OnMakeCamp(entity, user)
         )
 
         return true
+    end
+
+    if SimpleBedRoll.MarkBeddingRequiredOnPack
+        and SimpleBedRoll.Bedding.GetRequiredClassId then
+
+        SimpleBedRoll.MarkBeddingRequiredOnPack(
+            SimpleBedRoll.Bedding.GetRequiredClassId()
+        )
     end
 
     if itemId and ItemManager and ItemManager.RemoveItem then

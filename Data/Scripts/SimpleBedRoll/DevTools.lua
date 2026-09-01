@@ -332,6 +332,15 @@ function SimpleBedRoll.GiveBedrollItem(quantity, health)
     return verified or (before == nil and after == nil and result ~= false)
 end
 
+function SimpleBedRoll.GiveTestHay()
+    if SBR.Bedding and SBR.Bedding.GiveTestHay then
+        return SBR.Bedding.GiveTestHay()
+    end
+
+    log("GiveTestHay failed: Bedding module unavailable")
+    return false
+end
+
 function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
     prefabGuid = tostring(prefabGuid or "")
 
@@ -590,9 +599,10 @@ end
 
 function SimpleBedRoll.Help()
     helpLog("Simple Bedroll development commands:")
-    helpLog("help or sbr_help - show this command list")
+    helpLog("sbr_help - show this command list")
     helpLog("sbr_spawn - deploy the visible functional bedroll")
     helpLog("sbr_give_bedroll [quantity] [health] - add the bedroll item to Henry")
+    helpLog("sbr_give_hay - add one CuraEqui small hay bundle to Henry")
     helpLog("sbr_remove - remove the active bedroll")
     helpLog("sbr_status - report deployment entity state")
     helpLog(
@@ -651,12 +661,12 @@ function SimpleBedRoll.RegisterDevCommands()
         return false
     end
 
-    registerDevCommand("help", "sbr_help()", "Simple Bedroll: list development commands")
     registerDevCommand("sbr_help", "sbr_help()", "Simple Bedroll: list development commands")
     registerDevCommand("sbr_spawn", "sbr_spawn()", "Simple Bedroll: deploy functional bedroll")
     registerDevCommand("sbr_remove", "sbr_remove()", "Simple Bedroll: remove active bedroll")
     registerDevCommand("sbr_status", "sbr_status()", "Simple Bedroll: deployment status")
     registerDevCommand("sbr_give_bedroll", "sbr_give_bedroll(%%)", "Simple Bedroll: give bedroll item")
+    registerDevCommand("sbr_give_hay", "sbr_give_hay()", "Simple Bedroll: give one CuraEqui small hay bundle")
     registerDevCommand("sbr_probe_entities", "sbr_probe_entities(%1)", "Simple Bedroll: scan nearby entities")
     registerDevCommand("sbr_test_prefab", "SimpleBedRoll.SpawnTestPrefab([[%1]])", "Simple Bedroll: spawn test prefab")
     registerDevCommand("sbr_test_status", "SimpleBedRoll.TestStatus()", "Simple Bedroll: test prefab status")
@@ -673,16 +683,16 @@ function sbr_help()
     return SimpleBedRoll.Help()
 end
 
-function help()
-    return SimpleBedRoll.Help()
-end
-
 function sbr_spawn()
     return SimpleBedRoll.SpawnFunctionalTestBed()
 end
 
 function sbr_give_bedroll(quantity, health)
     return SimpleBedRoll.GiveBedrollItem(quantity, health)
+end
+
+function sbr_give_hay()
+    return SimpleBedRoll.GiveTestHay()
 end
 
 function sbr_remove()

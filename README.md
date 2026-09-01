@@ -65,9 +65,9 @@ The current prototype is controlled through short commands in the KCD2 Lua
 console:
 
 ```lua
-#help()
 #sbr_help()
 #sbr_give_bedroll()
+#sbr_give_hay()
 #sbr_spawn()
 #sbr_status()
 #sbr_remove()
@@ -79,9 +79,9 @@ The same helpers are also registered as console commands, so they can be typed
 without the Lua hash syntax:
 
 ```text
-help
 sbr_help
 sbr_give_bedroll 1 1.0
+sbr_give_hay
 sbr_spawn
 sbr_status
 sbr_remove
@@ -97,6 +97,8 @@ avoid accidental heavy queries. Results are ordered by distance and include each
 entity's class, name, ID, position, angles, model property, and links.
 `sbr_give_bedroll(quantity, health)` adds the custom bedroll item class to
 Henry's inventory; quantity defaults to 1 and health defaults to 1.0.
+`sbr_give_hay()` adds one CuraEqui small hay bundle to Henry's inventory for
+testing the bedding requirement.
 
 The original long-form deployment functions remain available for research and
 compatibility:
@@ -109,12 +111,16 @@ compatibility:
 
 When the custom Simple Bedroll misc item is dropped into the world, the
 prototype adds a held **Make camp** action beside the normal Pick up action. The
-action logs the world entity ID, item ID, class/name, and position, then deploys
-the existing functional bedroll at the dropped item's position using Henry's
-current heading. The dropped item is removed only after deployment succeeds.
+action first checks that Henry has at least one CuraEqui small hay bundle, then
+logs the world entity ID, item ID, class/name, and position, and deploys the
+existing functional bedroll at the dropped item's position using Henry's current
+heading. If no hay is available, deployment is aborted and the dropped bedroll
+world item is left untouched. The dropped item is removed only after deployment
+succeeds.
 Packing a bedroll that came from the dropped-item **Make camp** flow returns one
 bedroll item to Henry's inventory after the spawned entities are removed
-successfully.
+successfully. The small hay bundle is not consumed during deployment; one bundle
+is consumed only after the deployed bedroll is successfully packed.
 The interaction action is `simplebedroll_make_camp`, exposed as a writable
 General keybind named `simplebedroll_ui_keybind`. The default keyboard binding is
 `B`; controller binding follows the secondary-interaction face button used by
@@ -215,6 +221,7 @@ simplebedroll/
     │   │   └── SimpleBedRoll_VisualAnchor.lua
     │   ├── SimpleBedRoll/
     │   │   ├── BedTrigger.lua
+    │   │   ├── Bedding.lua
     │   │   ├── Config.lua
     │   │   ├── Deployment.lua
     │   │   ├── DevTools.lua
@@ -233,6 +240,8 @@ Current responsibilities:
 - `SimpleBedRoll.lua` is the small composition root: it creates the public table,
   loads the modules in dependency order, and handles gameplay startup.
 - `Placement.lua` finds Henry and calculates the current bed position and heading.
+- `Bedding.lua` owns the CuraEqui small-hay-bundle requirement and consumption
+  policy.
 - `Deployment.lua` owns functional spawning, entity linking, status, recovery,
   and cleanup for a complete bedroll deployment.
 - `DevTools.lua` owns command help, stable short wrappers, nearby-entity probes,
@@ -251,6 +260,7 @@ The first behavior-preserving modular split uses this runtime structure:
 ```text
 Scripts/SimpleBedRoll/
 ├── BedTrigger.lua          # native trigger instance behavior
+├── Bedding.lua             # disposable bedding item requirement
 ├── Config.lua
 ├── SimpleBedRoll.lua       # public API and coordination
 ├── Deployment.lua          # spawn, link, remove, recover

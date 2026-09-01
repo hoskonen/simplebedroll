@@ -24,6 +24,13 @@ function BedTriggerBehavior.ReportUse(self, user, items, action)
         if SBR.RemoveFunctionalTestBed then
             local shouldReturnItem = SBR.ShouldReturnItemOnPack
                 and SBR.ShouldReturnItemOnPack()
+            local shouldConsumeBedding, beddingClassId = false, nil
+
+            if SBR.GetBeddingRequiredOnPack then
+                shouldConsumeBedding, beddingClassId =
+                    SBR.GetBeddingRequiredOnPack()
+            end
+
             local removed = SBR.RemoveFunctionalTestBed()
 
             if removed
@@ -31,6 +38,24 @@ function BedTriggerBehavior.ReportUse(self, user, items, action)
                 and SBR.ReturnPackedBedrollItem then
 
                 SBR.ReturnPackedBedrollItem(user)
+            end
+
+            if removed and shouldConsumeBedding then
+                if SBR.Bedding and SBR.Bedding.ConsumeRequiredBedding then
+                    local consumed, consumeResult =
+                        SBR.Bedding.ConsumeRequiredBedding(user)
+
+                    if not consumed then
+                        log(
+                            "bedding consume skipped after pack classId="
+                            .. tostring(beddingClassId)
+                            .. " reason="
+                            .. tostring(consumeResult)
+                        )
+                    end
+                else
+                    log("bedding consume skipped: Bedding module unavailable")
+                end
             end
         else
             log("Pack failed: deployment module unavailable")

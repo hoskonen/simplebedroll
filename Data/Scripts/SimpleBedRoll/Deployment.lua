@@ -10,6 +10,8 @@ SBR.FunctionalTest = SBR.FunctionalTest or {
     visualAnchor = nil,
     modelPath = nil,
     returnItemOnPack = false,
+    beddingRequiredOnPack = false,
+    beddingClassId = nil,
 }
 
 local FUNCTIONAL_BED_CLASS = "SimpleBedRoll_BedEntity"
@@ -220,6 +222,8 @@ local function functionalRemoveExistingEntities()
     SBR.FunctionalTest.visualAnchor = nil
     SBR.FunctionalTest.modelPath = nil
     SBR.FunctionalTest.returnItemOnPack = false
+    SBR.FunctionalTest.beddingRequiredOnPack = false
+    SBR.FunctionalTest.beddingClassId = nil
 
     -- Development cleanup for entities whose Lua references were lost,
     -- for example after a script reload.
@@ -372,6 +376,8 @@ function SimpleBedRoll.SpawnFunctionalTestBed(position, angleZ)
     SBR.FunctionalTest.visualAnchor = visualAnchor
     SBR.FunctionalTest.modelPath = FUNCTIONAL_VISUAL_MODEL_PATH
     SBR.FunctionalTest.returnItemOnPack = false
+    SBR.FunctionalTest.beddingRequiredOnPack = false
+    SBR.FunctionalTest.beddingClassId = nil
 
     if visualAnchor.SetAngles then
         visualAnchor:SetAngles({
@@ -608,6 +614,17 @@ end
 
 function SimpleBedRoll.ShouldReturnItemOnPack()
     return SBR.FunctionalTest.returnItemOnPack == true
+end
+
+function SimpleBedRoll.MarkBeddingRequiredOnPack(classId)
+    SBR.FunctionalTest.beddingRequiredOnPack = true
+    SBR.FunctionalTest.beddingClassId = classId
+    return true
+end
+
+function SimpleBedRoll.GetBeddingRequiredOnPack()
+    return SBR.FunctionalTest.beddingRequiredOnPack == true,
+        SBR.FunctionalTest.beddingClassId
 end
 
 function SimpleBedRoll.ReturnPackedBedrollItem(user)

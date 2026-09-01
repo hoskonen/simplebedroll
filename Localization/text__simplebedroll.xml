@@ -5,4 +5,5 @@
 
     <Row><Cell>simplebedroll_ui_make_camp</Cell><Cell>Make Camp</Cell><Cell>Make Camp</Cell></Row>
     <Row><Cell>simplebedroll_ui_keybind</Cell><Cell>Make camp</Cell><Cell>Make camp</Cell></Row>
+    <Row><Cell>simplebedroll_ui_need_bedding</Cell><Cell>I need something dry to put beneath the bedroll.</Cell><Cell>I need something dry to put beneath the bedroll.</Cell></Row>
 </Table>
