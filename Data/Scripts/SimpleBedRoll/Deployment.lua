@@ -9,6 +9,7 @@ SBR.FunctionalTest = SBR.FunctionalTest or {
     trigger = nil,
     visualAnchor = nil,
     modelPath = nil,
+    returnItemOnPack = false,
 }
 
 local FUNCTIONAL_BED_CLASS = "SimpleBedRoll_BedEntity"
@@ -17,6 +18,7 @@ local FUNCTIONAL_TRIGGER_CLASS = "BedTrigger"
 local FUNCTIONAL_TRIGGER_NAME = "SimpleBedRoll_TestBedTrigger"
 local FUNCTIONAL_VISUAL_CLASS = "SimpleBedRoll_VisualAnchor"
 local FUNCTIONAL_VISUAL_NAME = "SimpleBedRoll_TestBedVisual"
+local BEDROLL_ITEM_CLASS_ID = "7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11"
 
 local visualConfig = SimpleBedRoll_Config.Visual or {}
 local FUNCTIONAL_VISUAL_MODEL_PATH = tostring(
@@ -128,6 +130,43 @@ local function functionalFindEntitiesByClass(className)
     return entities
 end
 
+local function getInventory(entity)
+    if not entity then
+        return nil
+    end
+
+    if entity.inventory then
+        return entity.inventory
+    end
+
+    if entity.GetInventory then
+        local ok, inventory = pcall(entity.GetInventory, entity)
+        if ok then
+            return inventory
+        end
+    end
+
+    return nil
+end
+
+local function getInventoryCount(inventory, classId)
+    if not inventory or not inventory.GetCountOfClass then
+        return nil
+    end
+
+    local ok, count = pcall(
+        inventory.GetCountOfClass,
+        inventory,
+        classId
+    )
+
+    if not ok or type(count) ~= "number" then
+        return nil
+    end
+
+    return math.floor(count + 0.00001)
+end
+
 local function functionalRemoveExistingEntities()
     local success = true
     local deletedIds = {}
@@ -180,6 +219,7 @@ local function functionalRemoveExistingEntities()
     SBR.FunctionalTest.bed = nil
     SBR.FunctionalTest.visualAnchor = nil
     SBR.FunctionalTest.modelPath = nil
+    SBR.FunctionalTest.returnItemOnPack = false
 
     -- Development cleanup for entities whose Lua references were lost,
     -- for example after a script reload.
@@ -233,7 +273,7 @@ local function functionalRemoveExistingEntities()
     return success
 end
 
-function SimpleBedRoll.SpawnFunctionalTestBed()
+function SimpleBedRoll.SpawnFunctionalTestBed(position, angleZ)
     if not System or not System.SpawnEntity then
         functionalLog(
             "spawn failed: System.SpawnEntity unavailable"
@@ -257,8 +297,14 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
         return false
     end
 
-    local bedPosition, angleZ =
-        Placement.GetBedPlacement(playerEntity)
+    local bedPosition = nil
+
+    if position then
+        bedPosition = Placement.CopyPosition(position)
+        angleZ = tonumber(angleZ) or Placement.GetPlayerHeading(playerEntity)
+    else
+        bedPosition, angleZ = Placement.GetBedPlacement(playerEntity)
+    end
 
     if not bedPosition then
         functionalLog(
@@ -325,6 +371,7 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
 
     SBR.FunctionalTest.visualAnchor = visualAnchor
     SBR.FunctionalTest.modelPath = FUNCTIONAL_VISUAL_MODEL_PATH
+    SBR.FunctionalTest.returnItemOnPack = false
 
     if visualAnchor.SetAngles then
         visualAnchor:SetAngles({
@@ -552,6 +599,65 @@ function SimpleBedRoll.SpawnFunctionalTestBed()
     )
 
     return true
+end
+
+function SimpleBedRoll.MarkReturnItemOnPack(value)
+    SBR.FunctionalTest.returnItemOnPack = value == true
+    return SBR.FunctionalTest.returnItemOnPack
+end
+
+function SimpleBedRoll.ShouldReturnItemOnPack()
+    return SBR.FunctionalTest.returnItemOnPack == true
+end
+
+function SimpleBedRoll.ReturnPackedBedrollItem(user)
+    local inventory = getInventory(user) or getInventory(Placement.GetPlayer())
+
+    if not inventory then
+        functionalLog("return item failed: player inventory unavailable")
+        return false
+    end
+
+    if not inventory.CreateItem then
+        functionalLog("return item failed: inventory.CreateItem unavailable")
+        return false
+    end
+
+    local before = getInventoryCount(inventory, BEDROLL_ITEM_CLASS_ID)
+    local ok, result = pcall(
+        inventory.CreateItem,
+        inventory,
+        BEDROLL_ITEM_CLASS_ID,
+        1.0,
+        1
+    )
+
+    if not ok then
+        functionalLog("return item failed: CreateItem raised " .. tostring(result))
+        return false
+    end
+
+    local after = getInventoryCount(inventory, BEDROLL_ITEM_CLASS_ID)
+    local verified = before ~= nil and after ~= nil and after >= before + 1
+
+    if Game and Game.ShowItemsTransfer then
+        pcall(Game.ShowItemsTransfer, BEDROLL_ITEM_CLASS_ID, 1)
+    end
+
+    functionalLog(
+        "returned packed bedroll item classId="
+        .. BEDROLL_ITEM_CLASS_ID
+        .. " result="
+        .. tostring(result)
+        .. " before="
+        .. tostring(before)
+        .. " after="
+        .. tostring(after)
+        .. " verified="
+        .. tostring(verified)
+    )
+
+    return verified or (before == nil and after == nil and result ~= false)
 end
 
 function SimpleBedRoll.RemoveFunctionalTestBed()

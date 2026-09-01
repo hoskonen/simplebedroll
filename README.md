@@ -65,6 +65,7 @@ The current prototype is controlled through short commands in the KCD2 Lua
 console:
 
 ```lua
+#help()
 #sbr_help()
 #sbr_give_bedroll()
 #sbr_spawn()
@@ -72,6 +73,22 @@ console:
 #sbr_remove()
 #sbr_probe_entities()
 #sbr_probe_entities(5)
+```
+
+The same helpers are also registered as console commands, so they can be typed
+without the Lua hash syntax:
+
+```text
+help
+sbr_help
+sbr_give_bedroll 1 1.0
+sbr_spawn
+sbr_status
+sbr_remove
+sbr_probe_entities 5
+sbr_test_prefab <guid>
+sbr_test_status
+sbr_test_remove
 ```
 
 `sbr_help()` prints the complete command list in game. The entity probe scans a
@@ -91,9 +108,13 @@ compatibility:
 ```
 
 When the custom Simple Bedroll misc item is dropped into the world, the
-prototype adds a held **Make camp** action beside the normal Pick up action. This
-milestone only logs the world entity ID, item ID, class/name, and position; it
-does not deploy the bed.
+prototype adds a held **Make camp** action beside the normal Pick up action. The
+action logs the world entity ID, item ID, class/name, and position, then deploys
+the existing functional bedroll at the dropped item's position using Henry's
+current heading. The dropped item is removed only after deployment succeeds.
+Packing a bedroll that came from the dropped-item **Make camp** flow returns one
+bedroll item to Henry's inventory after the spawned entities are removed
+successfully.
 The interaction action is `simplebedroll_make_camp`, exposed as a writable
 General keybind named `simplebedroll_ui_keybind`. The default keyboard binding is
 `B`; controller binding follows the secondary-interaction face button used by

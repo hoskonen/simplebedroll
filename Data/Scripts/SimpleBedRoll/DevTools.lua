@@ -590,15 +590,22 @@ end
 
 function SimpleBedRoll.Help()
     helpLog("Simple Bedroll development commands:")
-    helpLog("#sbr_help() - show this command list")
-    helpLog("#sbr_spawn() - deploy the visible functional bedroll")
-    helpLog("#sbr_give_bedroll(quantity, health) - add the bedroll item to Henry")
-    helpLog("#sbr_remove() - remove the active bedroll")
-    helpLog("#sbr_status() - report deployment entity state")
+    helpLog("help or sbr_help - show this command list")
+    helpLog("sbr_spawn - deploy the visible functional bedroll")
+    helpLog("sbr_give_bedroll [quantity] [health] - add the bedroll item to Henry")
+    helpLog("sbr_remove - remove the active bedroll")
+    helpLog("sbr_status - report deployment entity state")
     helpLog(
-        "#sbr_probe_entities(radius) - scan nearby entities; default 2, max 20 metres"
+        "sbr_probe_entities [radius] - scan nearby entities; default 2, max 20 metres"
+    )
+    helpLog("Lua hash forms also work: #sbr_help(), #sbr_spawn(), #sbr_remove()")
+    helpLog(
+        "#sbr_give_bedroll(quantity, health), #sbr_status(), #sbr_probe_entities(radius)"
     )
     helpLog("Experimental prefab commands:")
+    helpLog("sbr_test_prefab <guid>")
+    helpLog("sbr_test_status")
+    helpLog("sbr_test_remove")
     helpLog(
         "#SimpleBedRoll.SpawnTestPrefab(\"guid\")"
     )
@@ -608,8 +615,65 @@ function SimpleBedRoll.Help()
     return true
 end
 
+local function registerDevCommand(name, callback, description)
+    if not System or not System.AddCCommand then
+        return false
+    end
+
+    local ok, err = pcall(
+        System.AddCCommand,
+        name,
+        callback,
+        description
+    )
+
+    if not ok then
+        log(
+            "failed to register command "
+            .. tostring(name)
+            .. ": "
+            .. tostring(err)
+        )
+
+        return false
+    end
+
+    return true
+end
+
+function SimpleBedRoll.RegisterDevCommands()
+    if SBR._devCommandsRegistered then
+        return true
+    end
+
+    if not System or not System.AddCCommand then
+        log("dev command registration skipped: System.AddCCommand unavailable")
+        return false
+    end
+
+    registerDevCommand("help", "sbr_help()", "Simple Bedroll: list development commands")
+    registerDevCommand("sbr_help", "sbr_help()", "Simple Bedroll: list development commands")
+    registerDevCommand("sbr_spawn", "sbr_spawn()", "Simple Bedroll: deploy functional bedroll")
+    registerDevCommand("sbr_remove", "sbr_remove()", "Simple Bedroll: remove active bedroll")
+    registerDevCommand("sbr_status", "sbr_status()", "Simple Bedroll: deployment status")
+    registerDevCommand("sbr_give_bedroll", "sbr_give_bedroll(%%)", "Simple Bedroll: give bedroll item")
+    registerDevCommand("sbr_probe_entities", "sbr_probe_entities(%1)", "Simple Bedroll: scan nearby entities")
+    registerDevCommand("sbr_test_prefab", "SimpleBedRoll.SpawnTestPrefab([[%1]])", "Simple Bedroll: spawn test prefab")
+    registerDevCommand("sbr_test_status", "SimpleBedRoll.TestStatus()", "Simple Bedroll: test prefab status")
+    registerDevCommand("sbr_test_remove", "SimpleBedRoll.RemoveTestPrefab()", "Simple Bedroll: remove test prefab")
+
+    SBR._devCommandsRegistered = true
+    log("registered development console commands")
+
+    return true
+end
+
 
 function sbr_help()
+    return SimpleBedRoll.Help()
+end
+
+function help()
     return SimpleBedRoll.Help()
 end
 

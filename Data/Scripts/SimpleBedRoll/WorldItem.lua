@@ -139,6 +139,59 @@ function WorldItem.OnMakeCamp(entity, user)
         .. formatVector(position)
     )
 
+    if lower(classId) ~= lower(WorldItem.ItemClassId) then
+        log("Make camp aborted: world item class did not match Simple Bedroll")
+        return true
+    end
+
+    if not position then
+        log("Make camp aborted: world position unavailable")
+        return true
+    end
+
+    if not SimpleBedRoll.SpawnFunctionalTestBed then
+        log("Make camp aborted: deployment API unavailable")
+        return true
+    end
+
+    local deployOk, deployed = pcall(
+        SimpleBedRoll.SpawnFunctionalTestBed,
+        position
+    )
+
+    if not deployOk or deployed ~= true then
+        log(
+            "Make camp deployment failed: "
+            .. tostring(deployOk and deployed or deployed)
+        )
+
+        return true
+    end
+
+    if itemId and ItemManager and ItemManager.RemoveItem then
+        local removeOk, removed = pcall(ItemManager.RemoveItem, itemId)
+        local removedDroppedItem = removeOk and removed ~= false
+        log(
+            "Make camp removed dropped item: ok="
+            .. tostring(removeOk)
+            .. " result="
+            .. tostring(removed)
+            .. " itemId="
+            .. tostring(itemId)
+        )
+
+        if removedDroppedItem
+            and SimpleBedRoll.MarkReturnItemOnPack then
+
+            SimpleBedRoll.MarkReturnItemOnPack(true)
+        end
+    else
+        log(
+            "Make camp could not remove dropped item: ItemManager.RemoveItem unavailable itemId="
+            .. tostring(itemId)
+        )
+    end
+
     return true
 end
 
@@ -156,6 +209,10 @@ function WorldItem.InstallHooks()
 
     function pickableItem.GetActions(self, user, firstFast)
         local actions = originalGetActions(self, user, firstFast) or {}
+
+        if firstFast then
+            return actions
+        end
 
         if not WorldItem.IsSimpleBedroll(self)
             or not (Action and AddInteractorAction) then

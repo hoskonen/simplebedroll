@@ -22,7 +22,16 @@ function BedTriggerBehavior.ReportUse(self, user, items, action)
         )
 
         if SBR.RemoveFunctionalTestBed then
-            SBR.RemoveFunctionalTestBed()
+            local shouldReturnItem = SBR.ShouldReturnItemOnPack
+                and SBR.ShouldReturnItemOnPack()
+            local removed = SBR.RemoveFunctionalTestBed()
+
+            if removed
+                and shouldReturnItem
+                and SBR.ReturnPackedBedrollItem then
+
+                SBR.ReturnPackedBedrollItem(user)
+            end
         else
             log("Pack failed: deployment module unavailable")
         end

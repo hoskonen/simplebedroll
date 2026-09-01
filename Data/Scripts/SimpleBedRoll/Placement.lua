@@ -29,6 +29,20 @@ function Placement.CopyPosition(position)
     }
 end
 
+function Placement.GetPlayerHeading(playerEntity)
+    if not playerEntity or not playerEntity.GetAngles then
+        return 0
+    end
+
+    local angles = playerEntity:GetAngles()
+
+    if angles and angles.z then
+        return angles.z
+    end
+
+    return 0
+end
+
 function Placement.GetBedPlacement(playerEntity)
     if not playerEntity
         or not playerEntity.GetWorldPos
@@ -49,15 +63,5 @@ function Placement.GetBedPlacement(playerEntity)
         z = playerPosition.z,
     }
 
-    local angleZ = 0
-
-    if playerEntity.GetAngles then
-        local angles = playerEntity:GetAngles()
-
-        if angles and angles.z then
-            angleZ = angles.z
-        end
-    end
-
-    return position, angleZ
+    return position, Placement.GetPlayerHeading(playerEntity)
 end
