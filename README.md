@@ -122,6 +122,11 @@ Packing a bedroll that came from the dropped-item **Make camp** flow returns one
 bedroll item to Henry's inventory after the spawned entities are removed
 successfully. The small hay bundle is not consumed during deployment; one bundle
 is consumed only after the deployed bedroll is successfully packed.
+The deployment also spawns one temporary candle visual probe at a heading-relative
+offset from the bed. The current probe offset is `right=0.65`, `forward=0.15`,
+`z=0.0`; its target position is projected down to terrain/static geometry and
+raised by `GroundOffset=0.02` before spawning. Candle placement is optional: if
+grounding or spawning fails, bed deployment continues.
 The interaction action is `simplebedroll_make_camp`, exposed as a writable
 General keybind named `simplebedroll_ui_keybind`. The default keyboard binding is
 `B`; controller binding follows the secondary-interaction face button used by
@@ -242,6 +247,9 @@ Current responsibilities:
 - `SimpleBedRoll.lua` is the small composition root: it creates the public table,
   loads the modules in dependency order, and handles gameplay startup.
 - `Placement.lua` finds Henry and calculates the current bed position and heading.
+  It also exposes `OffsetFromHeading(origin, angleZ, right, forward, z)` for
+  camp-relative prop offsets and `GetGroundedPosition(position, verticalOffset)`
+  for terrain/static projection.
 - `Bedding.lua` owns the CuraEqui small-hay-bundle requirement and consumption
   policy.
 - `Environment.lua` owns the forest-only campsite validation. It scans nearby
@@ -270,7 +278,7 @@ Scripts/SimpleBedRoll/
 ├── SimpleBedRoll.lua       # public API and coordination
 ├── Deployment.lua          # spawn, link, remove, recover
 ├── Environment.lua         # forest-only campsite validation
-├── Placement.lua           # position, terrain, rotation, obstruction checks
+├── Placement.lua           # position, rotation, offsets, terrain grounding
 └── DevTools.lua            # help, status, probes, experimental commands
 ```
 

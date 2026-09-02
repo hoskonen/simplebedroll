@@ -8,6 +8,7 @@ SBR.FunctionalTest = SBR.FunctionalTest or {
     bed = nil,
     trigger = nil,
     visualAnchor = nil,
+    candleAnchor = nil,
     modelPath = nil,
     returnItemOnPack = false,
     beddingRequiredOnPack = false,
@@ -21,6 +22,17 @@ local FUNCTIONAL_TRIGGER_NAME = "SimpleBedRoll_TestBedTrigger"
 local FUNCTIONAL_VISUAL_CLASS = "SimpleBedRoll_VisualAnchor"
 local FUNCTIONAL_VISUAL_NAME = "SimpleBedRoll_TestBedVisual"
 local BEDROLL_ITEM_CLASS_ID = "7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11"
+
+local campPropsConfig = SimpleBedRoll_Config.CampProps or {}
+local candleConfig = campPropsConfig.Candle or {}
+local candleOffset = candleConfig.Offset or {}
+local CANDLE_PROP_NAME = tostring(
+    candleConfig.Name or "SimpleBedRoll_TestCampCandle"
+)
+local CANDLE_MODEL_PATH = tostring(
+    candleConfig.ModelPath or "manmade/common_illumination/candle_a.cgf"
+)
+local CANDLE_GROUND_OFFSET = tonumber(candleConfig.GroundOffset) or 0.02
 
 local visualConfig = SimpleBedRoll_Config.Visual or {}
 local FUNCTIONAL_VISUAL_MODEL_PATH = tostring(
@@ -169,6 +181,246 @@ local function getInventoryCount(inventory, classId)
     return math.floor(count + 0.00001)
 end
 
+local function formatVector(position)
+    if not position then
+        return "nil"
+    end
+
+    return string.format(
+        "%.2f, %.2f, %.2f",
+        tonumber(position.x) or 0,
+        tonumber(position.y) or 0,
+        tonumber(position.z) or 0
+    )
+end
+
+local function distanceBetween(first, second)
+    if not first or not second then
+        return nil
+    end
+
+    local x = (tonumber(first.x) or 0) - (tonumber(second.x) or 0)
+    local y = (tonumber(first.y) or 0) - (tonumber(second.y) or 0)
+    local z = (tonumber(first.z) or 0) - (tonumber(second.z) or 0)
+
+    return math.sqrt(x * x + y * y + z * z)
+end
+
+local function formatDistance(distance)
+    if distance == nil then
+        return "nil"
+    end
+
+    return string.format("%.3f", distance)
+end
+
+local function getEntityWorldPosition(entity)
+    if entity and entity.GetWorldPos then
+        local ok, position = pcall(entity.GetWorldPos, entity)
+        if ok then
+            return position
+        end
+    end
+
+    return nil
+end
+
+local function spawnVisualAnchor(
+    name,
+    position,
+    angleZ,
+    modelPath,
+    label,
+    diagnostics
+)
+    local params = {
+        class = FUNCTIONAL_VISUAL_CLASS,
+        name = name,
+        position = Placement.CopyPosition(position),
+
+        properties = {
+            Position = Placement.CopyPosition(position),
+
+            Angles = {
+                x = 0,
+                y = 0,
+                z = angleZ,
+            },
+
+            object_Model = modelPath,
+
+            bSaved_by_game = 1,
+            bSerialize = 1,
+        },
+    }
+
+    if diagnostics then
+        functionalLog(
+            tostring(label)
+            .. " spawn request bedPosition="
+            .. formatVector(diagnostics.bedPosition)
+            .. " offsetRight="
+            .. string.format("%.2f", tonumber(diagnostics.right) or 0)
+            .. " offsetForward="
+            .. string.format("%.2f", tonumber(diagnostics.forward) or 0)
+            .. " offsetZ="
+            .. string.format("%.2f", tonumber(diagnostics.z) or 0)
+            .. " angleZ="
+            .. string.format("%.4f", tonumber(angleZ) or 0)
+            .. " spawnPosition="
+            .. formatVector(position)
+            .. " bedToSpawnDistance="
+            .. formatDistance(distanceBetween(diagnostics.bedPosition, position))
+        )
+    end
+
+    local spawnOk, anchorOrError = pcall(System.SpawnEntity, params)
+
+    if not spawnOk then
+        functionalLog(
+            tostring(label)
+            .. " spawn raised an error: "
+            .. tostring(anchorOrError)
+        )
+
+        return nil
+    end
+
+    local anchor = anchorOrError
+
+    if diagnostics then
+        local worldPosition = getEntityWorldPosition(anchor)
+        local propertiesPosition = anchor
+            and anchor.Properties
+            and anchor.Properties.Position
+            or nil
+
+        functionalLog(
+            tostring(label)
+            .. " spawn result requestedSpawnPosition="
+            .. formatVector(position)
+            .. " anchorWorldPos="
+            .. formatVector(worldPosition)
+            .. " anchorPropertiesPosition="
+            .. formatVector(propertiesPosition)
+            .. " requestedToWorldDistance="
+            .. formatDistance(distanceBetween(position, worldPosition))
+        )
+    end
+
+    if not anchor or not anchor.id then
+        functionalLog(tostring(label) .. " spawn failed: no entity returned")
+        if anchor then
+            functionalDeleteEntity(anchor, tostring(label) .. " partial")
+        end
+
+        return nil
+    end
+
+    if anchor.SetAngles then
+        local angleOk, angleError = pcall(
+            anchor.SetAngles,
+            anchor,
+            {
+                x = 0,
+                y = 0,
+                z = angleZ,
+            }
+        )
+
+        if not angleOk then
+            functionalLog(
+                tostring(label)
+                .. " angle setup failed: "
+                .. tostring(angleError)
+            )
+            functionalDeleteEntity(anchor, tostring(label) .. " partial")
+            return nil
+        end
+    end
+
+    return anchor
+end
+
+local function spawnCandleProbe(bedPosition, angleZ)
+    if not (Placement and Placement.OffsetFromHeading) then
+        functionalLog("candle prop skipped: Placement.OffsetFromHeading unavailable")
+        return nil
+    end
+
+    local desiredPosition = Placement.OffsetFromHeading(
+        bedPosition,
+        angleZ,
+        candleOffset.right,
+        candleOffset.forward,
+        candleOffset.z
+    )
+
+    if not desiredPosition then
+        functionalLog("candle prop skipped: offset calculation failed")
+        return nil
+    end
+
+    if not (Placement and Placement.GetGroundedPosition) then
+        functionalLog("candle prop skipped: Placement.GetGroundedPosition unavailable")
+        return nil
+    end
+
+    local candlePosition, groundHit = Placement.GetGroundedPosition(
+        desiredPosition,
+        CANDLE_GROUND_OFFSET
+    )
+
+    if not candlePosition then
+        functionalLog(
+            "candle prop skipped: grounding failed desiredPos="
+            .. formatVector(desiredPosition)
+        )
+        return nil
+    end
+
+    functionalLog(
+        "candle desiredPos="
+        .. formatVector(desiredPosition)
+        .. " groundedPos="
+        .. formatVector(candlePosition)
+        .. " groundHit="
+        .. formatVector(groundHit)
+    )
+
+    local candleAnchor = spawnVisualAnchor(
+        CANDLE_PROP_NAME,
+        candlePosition,
+        angleZ,
+        CANDLE_MODEL_PATH,
+        "candle prop",
+        {
+            bedPosition = bedPosition,
+            right = candleOffset.right,
+            forward = candleOffset.forward,
+            z = candleOffset.z,
+        }
+    )
+
+    if not candleAnchor then
+        functionalLog("candle prop optional spawn failed; continuing deployment")
+        return nil
+    end
+
+    functionalLog(
+        "candle prop spawned id="
+        .. tostring(candleAnchor.id)
+        .. " pos="
+        .. formatVector(candlePosition)
+        .. " heading="
+        .. string.format("%.4f", angleZ)
+        .. " modelPath="
+        .. CANDLE_MODEL_PATH
+    )
+
+    return candleAnchor
+end
+
 local function functionalRemoveExistingEntities()
     local success = true
     local deletedIds = {}
@@ -217,9 +469,19 @@ local function functionalRemoveExistingEntities()
         end
     end
 
+    if SBR.FunctionalTest.candleAnchor then
+        if not deleteOnce(
+            SBR.FunctionalTest.candleAnchor,
+            "tracked candle prop"
+        ) then
+            success = false
+        end
+    end
+
     SBR.FunctionalTest.trigger = nil
     SBR.FunctionalTest.bed = nil
     SBR.FunctionalTest.visualAnchor = nil
+    SBR.FunctionalTest.candleAnchor = nil
     SBR.FunctionalTest.modelPath = nil
     SBR.FunctionalTest.returnItemOnPack = false
     SBR.FunctionalTest.beddingRequiredOnPack = false
@@ -263,7 +525,10 @@ local function functionalRemoveExistingEntities()
     for _, anchor in ipairs(visualAnchors) do
         if anchor
             and anchor.GetName
-            and anchor:GetName() == FUNCTIONAL_VISUAL_NAME then
+            and (
+                anchor:GetName() == FUNCTIONAL_VISUAL_NAME
+                or anchor:GetName() == CANDLE_PROP_NAME
+            ) then
 
             if not deleteOnce(
                 anchor,
@@ -393,6 +658,8 @@ function SimpleBedRoll.SpawnFunctionalTestBed(position, angleZ)
         .. " modelPath="
         .. FUNCTIONAL_VISUAL_MODEL_PATH
     )
+
+    SBR.FunctionalTest.candleAnchor = spawnCandleProbe(bedPosition, angleZ)
 
     local bedParams = {
         class = FUNCTIONAL_BED_CLASS,
@@ -682,6 +949,7 @@ function SimpleBedRoll.RemoveFunctionalTestBed()
         SBR.FunctionalTest.bed ~= nil
         or SBR.FunctionalTest.trigger ~= nil
         or SBR.FunctionalTest.visualAnchor ~= nil
+        or SBR.FunctionalTest.candleAnchor ~= nil
 
     local removed = functionalRemoveExistingEntities()
 
@@ -699,10 +967,12 @@ function SimpleBedRoll.FunctionalTestBedStatus()
     local bed = SBR.FunctionalTest.bed
     local trigger = SBR.FunctionalTest.trigger
     local visualAnchor = SBR.FunctionalTest.visualAnchor
+    local candleAnchor = SBR.FunctionalTest.candleAnchor
 
     local bedExists = functionalEntityExists(bed)
     local triggerExists = functionalEntityExists(trigger)
     local visualExists = functionalEntityExists(visualAnchor)
+    local candleExists = functionalEntityExists(candleAnchor)
 
     functionalLog(
         "status bedTracked="
@@ -723,6 +993,12 @@ function SimpleBedRoll.FunctionalTestBedStatus()
         .. tostring(visualExists)
         .. " visualId="
         .. tostring(visualAnchor and visualAnchor.id or nil)
+        .. " candleTracked="
+        .. tostring(candleAnchor ~= nil)
+        .. " candleExists="
+        .. tostring(candleExists)
+        .. " candleId="
+        .. tostring(candleAnchor and candleAnchor.id or nil)
         .. " modelPath="
         .. tostring(SBR.FunctionalTest.modelPath)
     )

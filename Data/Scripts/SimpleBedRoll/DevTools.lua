@@ -5,6 +5,12 @@ SimpleBedRoll = SimpleBedRoll or {}
 local SBR = SimpleBedRoll
 local TEST_ANCHOR_CLASS = "SimpleBedRoll_VisualAnchor"
 local BEDROLL_ITEM_CLASS_ID = "7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11"
+local TEST_LIGHT_ITEM_CLASSES = {
+    { id = "643000ee-d9ad-4501-8e07-b8fb2dd9aaed", name = "loot_candle" },
+    { id = "34380658-48a8-4726-94f6-51ad4d69cce8", name = "loot_lamp" },
+    { id = "6c2769a6-de64-42c0-aa25-323b49f7f3bd", name = "lantern_old" },
+    { id = "f1962b90-4704-4d4e-a1f2-f8a354f9bde3", name = "lantern_fancy" },
+}
 
 SBR.Test = SBR.Test or {
     anchor = nil,
@@ -341,6 +347,93 @@ function SimpleBedRoll.GiveTestHay()
     return false
 end
 
+function SimpleBedRoll.GiveLightTestItems(quantity, health)
+    quantity = math.floor(tonumber(quantity) or 1)
+    health = tonumber(health) or 1.0
+
+    if quantity < 1 then
+        quantity = 1
+    end
+
+    if quantity > 20 then
+        log("GiveLightTestItems quantity limited from " .. quantity .. " to 20")
+        quantity = 20
+    end
+
+    if health > 1 then
+        health = health / 100.0
+    end
+
+    if health < 0 then
+        health = 0
+    elseif health > 1 then
+        health = 1
+    end
+
+    local inventory = getPlayerInventory()
+
+    if not inventory then
+        log("GiveLightTestItems failed: player inventory unavailable")
+        return false
+    end
+
+    if not inventory.CreateItem then
+        log("GiveLightTestItems failed: inventory.CreateItem unavailable")
+        return false
+    end
+
+    local allOk = true
+
+    for _, itemClass in ipairs(TEST_LIGHT_ITEM_CLASSES) do
+        local before = getInventoryCount(inventory, itemClass.id)
+        local ok, result = pcall(
+            inventory.CreateItem,
+            inventory,
+            itemClass.id,
+            health,
+            quantity
+        )
+
+        if not ok or result == false then
+            allOk = false
+        end
+
+        local after = getInventoryCount(inventory, itemClass.id)
+        local verified = before ~= nil
+            and after ~= nil
+            and after >= before + quantity
+
+        if before ~= nil and after ~= nil and not verified then
+            allOk = false
+        end
+
+        if Game and Game.ShowItemsTransfer then
+            pcall(Game.ShowItemsTransfer, itemClass.id, quantity)
+        end
+
+        log(
+            "GiveLightTestItems item="
+            .. itemClass.name
+            .. " classId="
+            .. itemClass.id
+            .. " quantity="
+            .. tostring(quantity)
+            .. " health="
+            .. tostring(health)
+            .. " result="
+            .. tostring(result)
+            .. " before="
+            .. tostring(before)
+            .. " after="
+            .. tostring(after)
+            .. " verified="
+            .. tostring(verified)
+        )
+    end
+
+    return allOk
+end
+
 function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
     prefabGuid = tostring(prefabGuid or "")
 
@@ -603,6 +696,7 @@ function SimpleBedRoll.Help()
     helpLog("sbr_spawn - deploy the visible functional bedroll")
     helpLog("sbr_give_bedroll [quantity] [health] - add the bedroll item to Henry")
     helpLog("sbr_give_hay - add one CuraEqui small hay bundle to Henry")
+    helpLog("sbr_give_light_items [quantity] [health] - add candle/lamp/lantern test items")
     helpLog("sbr_remove - remove the active bedroll")
     helpLog("sbr_status - report deployment entity state")
     helpLog(
@@ -612,6 +706,7 @@ function SimpleBedRoll.Help()
     helpLog(
         "#sbr_give_bedroll(quantity, health), #sbr_status(), #sbr_probe_entities(radius)"
     )
+    helpLog("#sbr_give_light_items(quantity, health)")
     helpLog("Experimental prefab commands:")
     helpLog("sbr_test_prefab <guid>")
     helpLog("sbr_test_status")
@@ -667,6 +762,7 @@ function SimpleBedRoll.RegisterDevCommands()
     registerDevCommand("sbr_status", "sbr_status()", "Simple Bedroll: deployment status")
     registerDevCommand("sbr_give_bedroll", "sbr_give_bedroll(%%)", "Simple Bedroll: give bedroll item")
     registerDevCommand("sbr_give_hay", "sbr_give_hay()", "Simple Bedroll: give one CuraEqui small hay bundle")
+    registerDevCommand("sbr_give_light_items", "sbr_give_light_items(%%)", "Simple Bedroll: give lighting test items")
     registerDevCommand("sbr_probe_entities", "sbr_probe_entities(%1)", "Simple Bedroll: scan nearby entities")
     registerDevCommand("sbr_test_prefab", "SimpleBedRoll.SpawnTestPrefab([[%1]])", "Simple Bedroll: spawn test prefab")
     registerDevCommand("sbr_test_status", "SimpleBedRoll.TestStatus()", "Simple Bedroll: test prefab status")
@@ -693,6 +789,10 @@ end
 
 function sbr_give_hay()
     return SimpleBedRoll.GiveTestHay()
+end
+
+function sbr_give_light_items(quantity, health)
+    return SimpleBedRoll.GiveLightTestItems(quantity, health)
 end
 
 function sbr_remove()

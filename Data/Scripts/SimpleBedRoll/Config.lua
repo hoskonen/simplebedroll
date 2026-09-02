@@ -27,4 +27,19 @@ SimpleBedRoll_Config = {
         -- Lightweight vanilla makeshift bed used by the Camping Mod's basic tier.
         ModelPath = "Objects/manmade/common_furniture/beds/low/bed_makeshift_a.cgf",
     },
+
+    CampProps = {
+        Candle = {
+            Name = "SimpleBedRoll_TestCampCandle",
+            ModelPath = "Objects/manmade/common_illumination/candle_a.cgf",
+
+            Offset = {
+                right = 1.00,
+                forward = 0.15,
+                z = 0.0,
+            },
+
+            GroundOffset = 0.02,
+        },
+    },
 }
