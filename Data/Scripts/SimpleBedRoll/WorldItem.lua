@@ -8,6 +8,9 @@ local WorldItem = SimpleBedRoll.WorldItem
 WorldItem.ItemClassId = "7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11"
 WorldItem.ActionName = "simplebedroll_make_camp"
 WorldItem.ActionHint = "@simplebedroll_ui_make_camp"
+WorldItem.EnvironmentDeniedMessageKey = "@simplebedroll_ui_no_camp_site"
+WorldItem.EnvironmentDeniedMessageText =
+    "This is no place to make camp. I should find somewhere more secluded."
 WorldItem.HookRetryMs = 500
 
 local function log(message)
@@ -41,6 +44,28 @@ local function formatVector(vector)
         tonumber(vector.y) or 0,
         tonumber(vector.z) or 0
     )
+end
+
+local function notifyEnvironmentDenied()
+    local shown = false
+
+    if Game and Game.SendInfoText then
+        local ok = pcall(
+            Game.SendInfoText,
+            WorldItem.EnvironmentDeniedMessageKey,
+            false,
+            nil,
+            5
+        )
+        shown = ok == true
+    end
+
+    log(
+        "camp denied message: "
+        .. WorldItem.EnvironmentDeniedMessageText
+    )
+
+    return shown
 end
 
 local function valueFromAnyKey(item, keys)
@@ -146,6 +171,26 @@ function WorldItem.OnMakeCamp(entity, user)
 
     if not position then
         log("Make camp aborted: world position unavailable")
+        return true
+    end
+
+    if not (SimpleBedRoll.Environment
+        and SimpleBedRoll.Environment.CanCampHere) then
+
+        log("Make camp aborted: environment module unavailable")
+        return true
+    end
+
+    local canCamp, environmentReason =
+        SimpleBedRoll.Environment.CanCampHere(user)
+
+    if not canCamp then
+        notifyEnvironmentDenied()
+        log(
+            "Make camp aborted: environment denied reason="
+            .. tostring(environmentReason)
+        )
+
         return true
     end
 

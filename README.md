@@ -111,12 +111,13 @@ compatibility:
 
 When the custom Simple Bedroll misc item is dropped into the world, the
 prototype adds a held **Make camp** action beside the normal Pick up action. The
-action first checks that Henry has at least one CuraEqui small hay bundle, then
+action first checks that Henry is inside an active nearby forest audio area and
+has at least one CuraEqui small hay bundle, then
 logs the world entity ID, item ID, class/name, and position, and deploys the
 existing functional bedroll at the dropped item's position using Henry's current
-heading. If no hay is available, deployment is aborted and the dropped bedroll
-world item is left untouched. The dropped item is removed only after deployment
-succeeds.
+heading. If the environment check or hay check fails, deployment is aborted and
+the dropped bedroll world item is left untouched. The dropped item is removed
+only after deployment succeeds.
 Packing a bedroll that came from the dropped-item **Make camp** flow returns one
 bedroll item to Henry's inventory after the spawned entities are removed
 successfully. The small hay bundle is not consumed during deployment; one bundle
@@ -225,6 +226,7 @@ simplebedroll/
     │   │   ├── Config.lua
     │   │   ├── Deployment.lua
     │   │   ├── DevTools.lua
+    │   │   ├── Environment.lua
     │   │   ├── Placement.lua
     │   │   └── SimpleBedRoll.lua
     │   └── Systems/
@@ -242,6 +244,9 @@ Current responsibilities:
 - `Placement.lua` finds Henry and calculates the current bed position and heading.
 - `Bedding.lua` owns the CuraEqui small-hay-bundle requirement and consumption
   policy.
+- `Environment.lua` owns the forest-only campsite validation. It scans nearby
+  active `AudioAreaEntity` and `AudioAreaAmbience` entities and allows camping
+  only when an active entity name contains `forest`, case-insensitively.
 - `Deployment.lua` owns functional spawning, entity linking, status, recovery,
   and cleanup for a complete bedroll deployment.
 - `DevTools.lua` owns command help, stable short wrappers, nearby-entity probes,
@@ -264,6 +269,7 @@ Scripts/SimpleBedRoll/
 ├── Config.lua
 ├── SimpleBedRoll.lua       # public API and coordination
 ├── Deployment.lua          # spawn, link, remove, recover
+├── Environment.lua         # forest-only campsite validation
 ├── Placement.lua           # position, terrain, rotation, obstruction checks
 └── DevTools.lua            # help, status, probes, experimental commands
 ```
