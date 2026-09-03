@@ -8,7 +8,10 @@ SBR.FunctionalTest = SBR.FunctionalTest or {
     bed = nil,
     trigger = nil,
     visualAnchor = nil,
-    candleAnchor = nil,
+    candlePrefab = nil,
+    candlePosition = nil,
+    candleAngleZ = nil,
+    candleFlameOffset = nil,
     modelPath = nil,
     returnItemOnPack = false,
     beddingRequiredOnPack = false,
@@ -29,10 +32,16 @@ local candleOffset = candleConfig.Offset or {}
 local CANDLE_PROP_NAME = tostring(
     candleConfig.Name or "SimpleBedRoll_TestCampCandle"
 )
-local CANDLE_MODEL_PATH = tostring(
-    candleConfig.ModelPath or "manmade/common_illumination/candle_a.cgf"
-)
 local CANDLE_GROUND_OFFSET = tonumber(candleConfig.GroundOffset) or 0.02
+local prefabConfig = SimpleBedRoll_Config.Prefabs or {}
+local candlePrefabConfig = prefabConfig.CandleLit or {}
+local CANDLE_PREFAB_PATH = tostring(
+    candlePrefabConfig.Path
+    or "Data/Prefabs/simplebedroll/SBRCandleFullLitv1.xml"
+)
+local CANDLE_PREFAB_ID = tostring(
+    candlePrefabConfig.Guid or "da23c351-21cd-4430-8dc9-fc8c459086b7"
+)
 
 local visualConfig = SimpleBedRoll_Config.Visual or {}
 local FUNCTIONAL_VISUAL_MODEL_PATH = tostring(
@@ -196,7 +205,7 @@ end
 
 local function distanceBetween(first, second)
     if not first or not second then
-        return nil
+        return nil, nil, nil
     end
 
     local x = (tonumber(first.x) or 0) - (tonumber(second.x) or 0)
@@ -283,7 +292,7 @@ local function spawnVisualAnchor(
             .. tostring(anchorOrError)
         )
 
-        return nil
+        return nil, nil, nil
     end
 
     local anchor = anchorOrError
@@ -314,7 +323,7 @@ local function spawnVisualAnchor(
             functionalDeleteEntity(anchor, tostring(label) .. " partial")
         end
 
-        return nil
+        return nil, nil, nil
     end
 
     if anchor.SetAngles then
@@ -342,10 +351,159 @@ local function spawnVisualAnchor(
     return anchor
 end
 
+local function spawnRuntimePrefabAnchor(
+    name,
+    position,
+    angleZ,
+    prefabId,
+    prefabPath,
+    label
+)
+    if not (Game and Game.SpawnPrefab) then
+        functionalLog(
+            tostring(label)
+            .. " failed: Game.SpawnPrefab unavailable prefabPath="
+            .. tostring(prefabPath)
+            .. " prefabId="
+            .. tostring(prefabId)
+        )
+        return nil
+    end
+
+    prefabId = tostring(prefabId or "")
+
+    if prefabId == "" then
+        functionalLog(
+            tostring(label)
+            .. " failed: prefab GUID unavailable prefabPath="
+            .. tostring(prefabPath)
+        )
+        return nil
+    end
+
+    local spawnAngles = {
+        x = 0,
+        y = 0,
+        z = angleZ,
+    }
+
+    local params = {
+        class = FUNCTIONAL_VISUAL_CLASS,
+        name = name,
+        position = Placement.CopyPosition(position),
+
+        properties = {
+            Position = Placement.CopyPosition(position),
+            Angles = spawnAngles,
+            object_Model = "",
+            sPrefabID = prefabId,
+            bSaved_by_game = 1,
+            bSerialize = 1,
+        },
+    }
+
+    functionalLog(
+        tostring(label)
+        .. " request prefabPath="
+        .. tostring(prefabPath)
+        .. " prefabId="
+        .. tostring(prefabId)
+        .. " position="
+        .. formatVector(position)
+        .. " angleZ="
+        .. string.format("%.4f", tonumber(angleZ) or 0)
+    )
+
+    local ok, anchorOrError = pcall(System.SpawnEntity, params)
+    if not ok then
+        functionalLog(
+            tostring(label)
+            .. " failed while creating anchor: "
+            .. tostring(anchorOrError)
+            .. " prefabPath="
+            .. tostring(prefabPath)
+            .. " prefabId="
+            .. tostring(prefabId)
+        )
+        return nil
+    end
+
+    local anchor = anchorOrError
+    if not anchor or not anchor.id then
+        functionalLog(
+            tostring(label)
+            .. " failed: no anchor returned prefabPath="
+            .. tostring(prefabPath)
+            .. " prefabId="
+            .. tostring(prefabId)
+        )
+        return nil
+    end
+
+    if anchor.Hide then
+        anchor:Hide(1)
+    end
+
+    if anchor.SetPos then
+        anchor:SetPos(Placement.CopyPosition(position))
+    end
+
+    if anchor.SetAngles then
+        anchor:SetAngles(spawnAngles)
+    end
+
+    local spawnOk, spawnResult = pcall(
+        Game.SpawnPrefab,
+        anchor.id,
+        prefabId,
+        0
+    )
+
+    if not spawnOk then
+        functionalLog(
+            tostring(label)
+            .. " Game.SpawnPrefab crashed: "
+            .. tostring(spawnResult)
+            .. " prefabPath="
+            .. tostring(prefabPath)
+            .. " prefabId="
+            .. tostring(prefabId)
+        )
+        functionalDeleteEntity(anchor, tostring(label) .. " anchor")
+        return nil
+    end
+
+    if spawnResult == false then
+        functionalLog(
+            tostring(label)
+            .. " Game.SpawnPrefab failed: result=false prefabPath="
+            .. tostring(prefabPath)
+            .. " prefabId="
+            .. tostring(prefabId)
+        )
+        functionalDeleteEntity(anchor, tostring(label) .. " anchor")
+        return nil
+    end
+
+    functionalLog(
+        tostring(label)
+        .. " spawn requested prefabPath="
+        .. tostring(prefabPath)
+        .. " prefabId="
+        .. tostring(prefabId)
+        .. " result="
+        .. tostring(spawnResult)
+        .. " anchorId="
+        .. tostring(anchor.id)
+    )
+
+    return anchor
+end
+
 local function spawnCandleProbe(bedPosition, angleZ)
     if not (Placement and Placement.OffsetFromHeading) then
         functionalLog("candle prop skipped: Placement.OffsetFromHeading unavailable")
-        return nil
+        return nil, nil
     end
 
     local desiredPosition = Placement.OffsetFromHeading(
@@ -358,12 +516,12 @@ local function spawnCandleProbe(bedPosition, angleZ)
 
     if not desiredPosition then
         functionalLog("candle prop skipped: offset calculation failed")
-        return nil
+        return nil, nil
     end
 
     if not (Placement and Placement.GetGroundedPosition) then
         functionalLog("candle prop skipped: Placement.GetGroundedPosition unavailable")
-        return nil
+        return nil, nil
     end
 
     local candlePosition, groundHit = Placement.GetGroundedPosition(
@@ -376,7 +534,7 @@ local function spawnCandleProbe(bedPosition, angleZ)
             "candle prop skipped: grounding failed desiredPos="
             .. formatVector(desiredPosition)
         )
-        return nil
+        return nil, nil, nil
     end
 
     functionalLog(
@@ -388,37 +546,37 @@ local function spawnCandleProbe(bedPosition, angleZ)
         .. formatVector(groundHit)
     )
 
-    local candleAnchor = spawnVisualAnchor(
+    SBR.FunctionalTest.candlePosition = Placement.CopyPosition(candlePosition)
+    SBR.FunctionalTest.candleAngleZ = angleZ
+
+    local candlePrefab = spawnRuntimePrefabAnchor(
         CANDLE_PROP_NAME,
         candlePosition,
         angleZ,
-        CANDLE_MODEL_PATH,
-        "candle prop",
-        {
-            bedPosition = bedPosition,
-            right = candleOffset.right,
-            forward = candleOffset.forward,
-            z = candleOffset.z,
-        }
+        CANDLE_PREFAB_ID,
+        CANDLE_PREFAB_PATH,
+        "candle prefab"
     )
 
-    if not candleAnchor then
-        functionalLog("candle prop optional spawn failed; continuing deployment")
+    if not candlePrefab then
+        functionalLog("candle prefab optional spawn failed; continuing deployment")
         return nil
     end
 
     functionalLog(
-        "candle prop spawned id="
-        .. tostring(candleAnchor.id)
+        "candle prefab anchor spawned id="
+        .. tostring(candlePrefab.id)
         .. " pos="
         .. formatVector(candlePosition)
         .. " heading="
         .. string.format("%.4f", angleZ)
-        .. " modelPath="
-        .. CANDLE_MODEL_PATH
+        .. " prefabPath="
+        .. CANDLE_PREFAB_PATH
+        .. " prefabId="
+        .. CANDLE_PREFAB_ID
     )
 
-    return candleAnchor
+    return candlePrefab
 end
 
 local function functionalRemoveExistingEntities()
@@ -441,6 +599,64 @@ local function functionalRemoveExistingEntities()
         return functionalDeleteEntity(entity, label)
     end
 
+    local function deleteRuntimePrefabOnce(anchor, label)
+        if not anchor or not anchor.id then
+            return true
+        end
+
+        local idText = tostring(anchor.id)
+
+        if deletedIds[idText] then
+            return true
+        end
+
+        deletedIds[idText] = true
+
+        if Game and Game.DeletePrefab then
+            local ok, result = pcall(Game.DeletePrefab, anchor.id)
+
+            functionalLog(
+                "DeletePrefab "
+                .. tostring(label)
+                .. " ok="
+                .. tostring(ok)
+                .. " result="
+                .. tostring(result)
+                .. " anchorId="
+                .. tostring(anchor.id)
+            )
+
+            if not ok then
+                return false
+            end
+        else
+            functionalLog(
+                "DeletePrefab unavailable for "
+                .. tostring(label)
+                .. " anchorId="
+                .. tostring(anchor.id)
+            )
+        end
+
+        return functionalDeleteEntity(anchor, tostring(label) .. " anchor")
+    end
+
+    local function deleteLightOnce(light, label)
+        if not light or not light.id then
+            return true
+        end
+
+        local idText = tostring(light.id)
+
+        if deletedIds[idText] then
+            return true
+        end
+
+        deletedIds[idText] = true
+
+        return functionalDeleteEntity(light, label)
+    end
+
     -- Remove tracked trigger first so it cannot retain a link to a deleted bed.
     if SBR.FunctionalTest.trigger then
         if not deleteOnce(
@@ -455,6 +671,34 @@ local function functionalRemoveExistingEntities()
         if not deleteOnce(
             SBR.FunctionalTest.bed,
             "tracked bed"
+        ) then
+            success = false
+        end
+    end
+
+    if SBR.FunctionalTest.candlePrefab then
+        if not deleteRuntimePrefabOnce(
+            SBR.FunctionalTest.candlePrefab,
+            "tracked candle prefab"
+        ) then
+            success = false
+        end
+    end
+
+    -- Legacy cleanup for manual candle entities from pre-prefab live sessions.
+    if SBR.FunctionalTest.candleFlame then
+        if not deleteLightOnce(
+            SBR.FunctionalTest.candleFlame,
+            "tracked candle flame"
+        ) then
+            success = false
+        end
+    end
+
+    if SBR.FunctionalTest.candleLight then
+        if not deleteLightOnce(
+            SBR.FunctionalTest.candleLight,
+            "tracked candle light"
         ) then
             success = false
         end
@@ -481,7 +725,13 @@ local function functionalRemoveExistingEntities()
     SBR.FunctionalTest.trigger = nil
     SBR.FunctionalTest.bed = nil
     SBR.FunctionalTest.visualAnchor = nil
+    SBR.FunctionalTest.candlePrefab = nil
     SBR.FunctionalTest.candleAnchor = nil
+    SBR.FunctionalTest.candleLight = nil
+    SBR.FunctionalTest.candleFlame = nil
+    SBR.FunctionalTest.candlePosition = nil
+    SBR.FunctionalTest.candleAngleZ = nil
+    SBR.FunctionalTest.candleFlameOffset = nil
     SBR.FunctionalTest.modelPath = nil
     SBR.FunctionalTest.returnItemOnPack = false
     SBR.FunctionalTest.beddingRequiredOnPack = false
@@ -523,18 +773,23 @@ local function functionalRemoveExistingEntities()
     )
 
     for _, anchor in ipairs(visualAnchors) do
-        if anchor
-            and anchor.GetName
-            and (
-                anchor:GetName() == FUNCTIONAL_VISUAL_NAME
-                or anchor:GetName() == CANDLE_PROP_NAME
-            ) then
+        if anchor and anchor.GetName then
+            local anchorName = anchor:GetName()
 
-            if not deleteOnce(
-                anchor,
-                "orphaned visual prop"
-            ) then
-                success = false
+            if anchorName == FUNCTIONAL_VISUAL_NAME then
+                if not deleteOnce(
+                    anchor,
+                    "orphaned visual prop"
+                ) then
+                    success = false
+                end
+            elseif anchorName == CANDLE_PROP_NAME then
+                if not deleteRuntimePrefabOnce(
+                    anchor,
+                    "orphaned candle prefab"
+                ) then
+                    success = false
+                end
             end
         end
     end
@@ -659,7 +914,7 @@ function SimpleBedRoll.SpawnFunctionalTestBed(position, angleZ)
         .. FUNCTIONAL_VISUAL_MODEL_PATH
     )
 
-    SBR.FunctionalTest.candleAnchor = spawnCandleProbe(bedPosition, angleZ)
+    SBR.FunctionalTest.candlePrefab = spawnCandleProbe(bedPosition, angleZ)
 
     local bedParams = {
         class = FUNCTIONAL_BED_CLASS,
@@ -949,7 +1204,10 @@ function SimpleBedRoll.RemoveFunctionalTestBed()
         SBR.FunctionalTest.bed ~= nil
         or SBR.FunctionalTest.trigger ~= nil
         or SBR.FunctionalTest.visualAnchor ~= nil
+        or SBR.FunctionalTest.candlePrefab ~= nil
         or SBR.FunctionalTest.candleAnchor ~= nil
+        or SBR.FunctionalTest.candleLight ~= nil
+        or SBR.FunctionalTest.candleFlame ~= nil
 
     local removed = functionalRemoveExistingEntities()
 
@@ -967,12 +1225,12 @@ function SimpleBedRoll.FunctionalTestBedStatus()
     local bed = SBR.FunctionalTest.bed
     local trigger = SBR.FunctionalTest.trigger
     local visualAnchor = SBR.FunctionalTest.visualAnchor
-    local candleAnchor = SBR.FunctionalTest.candleAnchor
+    local candlePrefab = SBR.FunctionalTest.candlePrefab
 
     local bedExists = functionalEntityExists(bed)
     local triggerExists = functionalEntityExists(trigger)
     local visualExists = functionalEntityExists(visualAnchor)
-    local candleExists = functionalEntityExists(candleAnchor)
+    local candlePrefabExists = functionalEntityExists(candlePrefab)
 
     functionalLog(
         "status bedTracked="
@@ -993,12 +1251,12 @@ function SimpleBedRoll.FunctionalTestBedStatus()
         .. tostring(visualExists)
         .. " visualId="
         .. tostring(visualAnchor and visualAnchor.id or nil)
-        .. " candleTracked="
-        .. tostring(candleAnchor ~= nil)
-        .. " candleExists="
-        .. tostring(candleExists)
-        .. " candleId="
-        .. tostring(candleAnchor and candleAnchor.id or nil)
+        .. " candlePrefabTracked="
+        .. tostring(candlePrefab ~= nil)
+        .. " candlePrefabExists="
+        .. tostring(candlePrefabExists)
+        .. " candlePrefabId="
+        .. tostring(candlePrefab and candlePrefab.id or nil)
         .. " modelPath="
         .. tostring(SBR.FunctionalTest.modelPath)
     )

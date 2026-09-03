@@ -73,6 +73,7 @@ console:
 #sbr_remove()
 #sbr_probe_entities()
 #sbr_probe_entities(5)
+#sbr_test_lit_candle_prefab()
 ```
 
 The same helpers are also registered as console commands, so they can be typed
@@ -86,6 +87,7 @@ sbr_spawn
 sbr_status
 sbr_remove
 sbr_probe_entities 5
+sbr_test_lit_candle_prefab
 sbr_test_prefab <guid>
 sbr_test_status
 sbr_test_remove
@@ -123,10 +125,19 @@ bedroll item to Henry's inventory after the spawned entities are removed
 successfully. The small hay bundle is not consumed during deployment; one bundle
 is consumed only after the deployed bedroll is successfully packed.
 The deployment also spawns one temporary candle visual probe at a heading-relative
-offset from the bed. The current probe offset is `right=0.65`, `forward=0.15`,
+offset from the bed. The current probe offset is `right=1.00`, `forward=0.15`,
 `z=0.0`; its target position is projected down to terrain/static geometry and
 raised by `GroundOffset=0.02` before spawning. Candle placement is optional: if
 grounding or spawning fails, bed deployment continues.
+The candle also attempts to spawn one optional runtime `Light` entity at the
+grounded candle position plus a candle-local wick offset. The initial wick offset
+is `right=0.0`, `forward=0.0`, `z=0.12`, and the light copies the observed
+vanilla `candleSmall2` radius, color, flicker style, projector, shadow, and
+vertical clip settings for testing.
+The same candle position also drives one optional runtime `ParticleEffect` named
+`SimpleBedRoll_TestCampCandleFlame` using `WH_Particels.fires.candle`. The
+initial flame offset is `right=0.003486633`, `forward=0.001457214`,
+`z=0.06493159` with vanilla rotation `0.7071068, 0.7071068, 0, 0`.
 The interaction action is `simplebedroll_make_camp`, exposed as a writable
 General keybind named `simplebedroll_ui_keybind`. The default keyboard binding is
 `B`; controller binding follows the secondary-interaction face button used by
@@ -137,6 +148,7 @@ bed deployment path:
 
 ```lua
 #SimpleBedRoll.SpawnTestPrefab("prefab-guid")
+#SimpleBedRoll.SpawnLitCandlePrefab()
 #SimpleBedRoll.TestStatus()
 #SimpleBedRoll.RemoveTestPrefab()
 ```
@@ -279,6 +291,7 @@ Scripts/SimpleBedRoll/
 ├── Deployment.lua          # spawn, link, remove, recover
 ├── Environment.lua         # forest-only campsite validation
 ├── Placement.lua           # position, rotation, offsets, terrain grounding
+├── CampLight.lua           # optional runtime candle Light and flame entities
 └── DevTools.lua            # help, status, probes, experimental commands
 ```
 

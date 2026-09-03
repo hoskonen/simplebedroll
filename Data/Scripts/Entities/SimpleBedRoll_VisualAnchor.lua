@@ -42,12 +42,29 @@ SimpleBedRoll_VisualAnchor = {
 
 EntityCommon.Derive(SimpleBedRoll_VisualAnchor, BasicEntity)
 
+local function normalizeModelPath(modelPath)
+    local text = tostring(modelPath or "")
+    text = string.gsub(text, "^%s+", "")
+    text = string.gsub(text, "%s+$", "")
+    text = string.gsub(text, "\\", "/")
+    text = string.gsub(text, "^Data/", "")
+    text = string.gsub(text, "^Objects/", "objects/")
+
+    return text
+end
+
+function SimpleBedRoll_VisualAnchor:SetupModel()
+    self.Properties.object_Model = normalizeModelPath(
+        self.Properties.object_Model
+    )
+
+    BasicEntity.SetupModel(self)
+end
+
 function SimpleBedRoll_VisualAnchor:OnSpawn()
     BasicEntity.OnSpawn(self)
 
     self:SetFromProperties()
-    self:SetAngles(self.Properties.Angles)
-    self:SetPos(self.Properties.Position)
     self:SetViewDistUnlimited()
     self:RenderShadow(true)
 end

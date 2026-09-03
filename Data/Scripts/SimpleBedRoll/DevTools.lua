@@ -4,6 +4,16 @@ SimpleBedRoll = SimpleBedRoll or {}
 
 local SBR = SimpleBedRoll
 local TEST_ANCHOR_CLASS = "SimpleBedRoll_VisualAnchor"
+local TEST_PREFAB_ANCHOR_MODEL = ""
+local prefabConfig = SimpleBedRoll_Config.Prefabs or {}
+local litCandlePrefabConfig = prefabConfig.CandleLit or {}
+local LIT_CANDLE_PREFAB_ID = tostring(
+    litCandlePrefabConfig.Guid or "da23c351-21cd-4430-8dc9-fc8c459086b7"
+)
+local LIT_CANDLE_PREFAB_PATH = tostring(
+    litCandlePrefabConfig.Path
+    or "Data/Prefabs/simplebedroll/SBRCandleFullLitv1.xml"
+)
 local BEDROLL_ITEM_CLASS_ID = "7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11"
 local TEST_LIGHT_ITEM_CLASSES = {
     { id = "643000ee-d9ad-4501-8e07-b8fb2dd9aaed", name = "loot_candle" },
@@ -436,6 +446,9 @@ end
 
 function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
     prefabGuid = tostring(prefabGuid or "")
+    prefabGuid = string.gsub(prefabGuid, "^%s+", "")
+    prefabGuid = string.gsub(prefabGuid, "%s+$", "")
+    prefabGuid = string.gsub(prefabGuid, "^[\"'](.+)[\"']$", "%1")
 
     if prefabGuid == "" then
         log("SpawnTestPrefab rejected: prefab GUID is required")
@@ -472,12 +485,30 @@ function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
         return false
     end
 
+    local playerAngles = nil
+
+    if playerEntity.GetAngles then
+        playerAngles = playerEntity:GetAngles()
+    end
+
+    local spawnAngles = {
+        x = 0,
+        y = 0,
+        z = playerAngles and playerAngles.z or 0,
+    }
+
     local spawnParams = {
         class = TEST_ANCHOR_CLASS,
         name = "SimpleBedRoll_TestAnchor",
         position = spawnPosition,
+
         properties = {
-            object_Model = "",
+            Position = spawnPosition,
+            Angles = spawnAngles,
+            object_Model = TEST_PREFAB_ANCHOR_MODEL,
+            sPrefabID = prefabGuid,
+            bSaved_by_game = 1,
+            bSerialize = 1,
         },
     }
 
@@ -496,18 +527,16 @@ function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
     SBR.Test.anchor = anchor
     SBR.Test.prefabGuid = prefabGuid
 
-    local playerAngles = nil
-
-    if playerEntity.GetAngles then
-        playerAngles = playerEntity:GetAngles()
+    if anchor.Hide then
+        anchor:Hide(1)
     end
 
-    if playerAngles and anchor.SetAngles then
-        anchor:SetAngles({
-            x = 0,
-            y = 0,
-            z = playerAngles.z,
-        })
+    if anchor.SetPos then
+        anchor:SetPos(spawnPosition)
+    end
+
+    if anchor.SetAngles then
+        anchor:SetAngles(spawnAngles)
     end
 
     log(
@@ -520,6 +549,10 @@ function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
             spawnPosition.y,
             spawnPosition.z
         )
+        .. " angleZ="
+        .. tostring(spawnAngles.z)
+        .. " model="
+        .. TEST_PREFAB_ANCHOR_MODEL
     )
 
     local spawnOk, spawnResult = pcall(
@@ -542,8 +575,129 @@ function SimpleBedRoll.SpawnTestPrefab(prefabGuid)
         .. prefabGuid
         .. " result="
         .. tostring(spawnResult)
+        .. " anchorId="
+        .. tostring(anchor.id)
     )
 
+    return true
+end
+
+function SimpleBedRoll.SpawnLitCandlePrefab()
+    log(
+        "SpawnLitCandlePrefab request prefabPath="
+        .. LIT_CANDLE_PREFAB_PATH
+        .. " prefabId="
+        .. LIT_CANDLE_PREFAB_ID
+    )
+
+    local spawned = SimpleBedRoll.SpawnTestPrefab(LIT_CANDLE_PREFAB_ID)
+
+    log(
+        "SpawnLitCandlePrefab result="
+        .. tostring(spawned)
+        .. " anchorId="
+        .. tostring(SBR.Test.anchor and SBR.Test.anchor.id or nil)
+        .. " prefabId="
+        .. tostring(SBR.Test.prefabGuid)
+    )
+
+    return spawned
+end
+
+function SimpleBedRoll.ProbePrefabApis(prefabGuid)
+    prefabGuid = tostring(prefabGuid or "")
+    prefabGuid = string.gsub(prefabGuid, "^%s+", "")
+    prefabGuid = string.gsub(prefabGuid, "%s+$", "")
+    prefabGuid = string.gsub(prefabGuid, "^[\"'](.+)[\"']$", "%1")
+
+    if prefabGuid == "" then
+        log("ProbePrefabApis rejected: prefab GUID is required")
+        return false
+    end
+
+    local playerEntity = getPlayer()
+    local spawnPosition = playerEntity and getSpawnPosition(playerEntity, 2.0)
+
+    log(
+        "ProbePrefabApis begin guid="
+        .. prefabGuid
+        .. " position="
+        .. formatVector(spawnPosition)
+    )
+
+    local function probe(label, fn, ...)
+        if not fn then
+            log("ProbePrefabApis " .. label .. " unavailable")
+            return nil
+        end
+
+        local ok, result = pcall(fn, ...)
+        log(
+            "ProbePrefabApis "
+            .. label
+            .. " ok="
+            .. tostring(ok)
+            .. " result="
+            .. tostring(result)
+        )
+
+        return ok and result or nil
+    end
+
+    if Game then
+        probe("CacheResource(guid)", Game.CacheResource, prefabGuid)
+        probe("CreatePrefab(guid)", Game.CreatePrefab, prefabGuid)
+
+        if spawnPosition then
+            probe(
+                "CreatePrefab(guid,pos)",
+                Game.CreatePrefab,
+                prefabGuid,
+                spawnPosition
+            )
+            probe(
+                "CreatePrefab(guid,pos,0)",
+                Game.CreatePrefab,
+                prefabGuid,
+                spawnPosition,
+                0
+            )
+        end
+    end
+
+    local spawned = SimpleBedRoll.SpawnTestPrefab(prefabGuid)
+    local anchor = SBR.Test and SBR.Test.anchor or nil
+    log(
+        "ProbePrefabApis SpawnTestPrefab result="
+        .. tostring(spawned)
+        .. " anchorId="
+        .. tostring(anchor and anchor.id or nil)
+    )
+
+    if Game and anchor and anchor.id then
+        probe(
+            "CreatePrefab(anchorId,guid,0)",
+            Game.CreatePrefab,
+            anchor.id,
+            prefabGuid,
+            0
+        )
+        probe(
+            "CreatePrefab(guid,anchorId,0)",
+            Game.CreatePrefab,
+            prefabGuid,
+            anchor.id,
+            0
+        )
+        probe(
+            "MovePrefab(anchorId,pos)",
+            Game.MovePrefab,
+            anchor.id,
+            spawnPosition
+        )
+    end
+
+    log("ProbePrefabApis end guid=" .. prefabGuid)
     return true
 end
 
@@ -699,6 +853,10 @@ function SimpleBedRoll.Help()
     helpLog("sbr_give_light_items [quantity] [health] - add candle/lamp/lantern test items")
     helpLog("sbr_remove - remove the active bedroll")
     helpLog("sbr_status - report deployment entity state")
+    helpLog("sbr_flame_z <z> - respawn only the candle flame with absolute local z")
+    helpLog("sbr_flame_up [delta] - raise only the candle flame; default 0.01")
+    helpLog("sbr_flame_down [delta] - lower only the candle flame; default 0.01")
+    helpLog("sbr_flame_offset <right> <forward> <z> - respawn flame at local offset")
     helpLog(
         "sbr_probe_entities [radius] - scan nearby entities; default 2, max 20 metres"
     )
@@ -706,14 +864,18 @@ function SimpleBedRoll.Help()
     helpLog(
         "#sbr_give_bedroll(quantity, health), #sbr_status(), #sbr_probe_entities(radius)"
     )
+    helpLog("#sbr_flame_z(z), #sbr_flame_up(delta), #sbr_flame_down(delta)")
     helpLog("#sbr_give_light_items(quantity, health)")
     helpLog("Experimental prefab commands:")
     helpLog("sbr_test_prefab <guid>")
+    helpLog("sbr_test_lit_candle_prefab - spawn " .. LIT_CANDLE_PREFAB_PATH)
+    helpLog("sbr_probe_prefab <guid> - try prefab runtime APIs and log results")
     helpLog("sbr_test_status")
     helpLog("sbr_test_remove")
     helpLog(
         "#SimpleBedRoll.SpawnTestPrefab(\"guid\")"
     )
+    helpLog("#sbr_test_lit_candle_prefab(), #SimpleBedRoll.SpawnLitCandlePrefab()")
     helpLog("#SimpleBedRoll.TestStatus()")
     helpLog("#SimpleBedRoll.RemoveTestPrefab()")
 
@@ -763,8 +925,14 @@ function SimpleBedRoll.RegisterDevCommands()
     registerDevCommand("sbr_give_bedroll", "sbr_give_bedroll(%%)", "Simple Bedroll: give bedroll item")
     registerDevCommand("sbr_give_hay", "sbr_give_hay()", "Simple Bedroll: give one CuraEqui small hay bundle")
     registerDevCommand("sbr_give_light_items", "sbr_give_light_items(%%)", "Simple Bedroll: give lighting test items")
+    registerDevCommand("sbr_flame_z", "sbr_flame_z(%1)", "Simple Bedroll: set live candle flame local z")
+    registerDevCommand("sbr_flame_up", "sbr_flame_up(%1)", "Simple Bedroll: raise live candle flame")
+    registerDevCommand("sbr_flame_down", "sbr_flame_down(%1)", "Simple Bedroll: lower live candle flame")
+    registerDevCommand("sbr_flame_offset", "sbr_flame_offset(%1,%2,%3)", "Simple Bedroll: set live candle flame local offset")
     registerDevCommand("sbr_probe_entities", "sbr_probe_entities(%1)", "Simple Bedroll: scan nearby entities")
     registerDevCommand("sbr_test_prefab", "SimpleBedRoll.SpawnTestPrefab([[%1]])", "Simple Bedroll: spawn test prefab")
+    registerDevCommand("sbr_test_lit_candle_prefab", "SimpleBedRoll.SpawnLitCandlePrefab()", "Simple Bedroll: spawn lit candle prefab")
+    registerDevCommand("sbr_probe_prefab", "SimpleBedRoll.ProbePrefabApis([[%1]])", "Simple Bedroll: probe prefab runtime APIs")
     registerDevCommand("sbr_test_status", "SimpleBedRoll.TestStatus()", "Simple Bedroll: test prefab status")
     registerDevCommand("sbr_test_remove", "SimpleBedRoll.RemoveTestPrefab()", "Simple Bedroll: remove test prefab")
 
@@ -795,6 +963,129 @@ function sbr_give_light_items(quantity, health)
     return SimpleBedRoll.GiveLightTestItems(quantity, health)
 end
 
+local function currentFlameOffset()
+    local stateOffset = SBR.FunctionalTest
+        and SBR.FunctionalTest.candleFlameOffset
+        or nil
+
+    if stateOffset then
+        return {
+            right = tonumber(stateOffset.right) or 0,
+            forward = tonumber(stateOffset.forward) or 0,
+            z = tonumber(stateOffset.z) or 0,
+        }
+    end
+
+    if SBR.CampLight and SBR.CampLight.GetFlameOffset then
+        return SBR.CampLight.GetFlameOffset()
+    end
+
+    local flameConfig = SimpleBedRoll_Config
+        and SimpleBedRoll_Config.CampProps
+        and SimpleBedRoll_Config.CampProps.Candle
+        and SimpleBedRoll_Config.CampProps.Candle.Flame
+        or {}
+    local offset = flameConfig.Offset or {}
+
+    return {
+        right = tonumber(offset.right) or 0.003486633,
+        forward = tonumber(offset.forward) or 0.001457214,
+        z = tonumber(offset.z) or 0.06493159,
+    }
+end
+
+function SimpleBedRoll.SetCandleFlameOffset(right, forward, z)
+    local state = SBR.FunctionalTest
+
+    if not state or not state.candlePosition then
+        log("flame tune failed: no deployed candle position tracked")
+        return false
+    end
+
+    if not (SBR.CampLight and SBR.CampLight.SpawnCandleFlame) then
+        log("flame tune failed: CampLight.SpawnCandleFlame unavailable")
+        return false
+    end
+
+    local offset = {
+        right = tonumber(right),
+        forward = tonumber(forward),
+        z = tonumber(z),
+    }
+
+    if offset.right == nil or offset.forward == nil or offset.z == nil then
+        log("flame tune failed: usage sbr_flame_offset <right> <forward> <z>")
+        return false
+    end
+
+    if state.candleFlame then
+        if SBR.CampLight.Remove then
+            SBR.CampLight.Remove(state.candleFlame)
+        elseif state.candleFlame.DeleteThis then
+            pcall(state.candleFlame.DeleteThis, state.candleFlame)
+        end
+    end
+
+    state.candleFlame = nil
+    state.candleFlameOffset = offset
+    state.candleFlame = SBR.CampLight.SpawnCandleFlame(
+        state.candlePosition,
+        state.candleAngleZ or 0,
+        offset
+    )
+
+    log(
+        "flame tune offset right="
+        .. tostring(offset.right)
+        .. " forward="
+        .. tostring(offset.forward)
+        .. " z="
+        .. tostring(offset.z)
+        .. " candlePos="
+        .. formatVector(state.candlePosition)
+        .. " resultId="
+        .. tostring(state.candleFlame and state.candleFlame.id or nil)
+    )
+
+    return state.candleFlame ~= nil
+end
+
+function SimpleBedRoll.SetCandleFlameZ(z)
+    local offset = currentFlameOffset()
+    return SimpleBedRoll.SetCandleFlameOffset(
+        offset.right,
+        offset.forward,
+        z
+    )
+end
+
+function SimpleBedRoll.NudgeCandleFlameZ(delta)
+    delta = tonumber(delta) or 0.01
+
+    local offset = currentFlameOffset()
+    return SimpleBedRoll.SetCandleFlameOffset(
+        offset.right,
+        offset.forward,
+        offset.z + delta
+    )
+end
+
+function sbr_flame_z(z)
+    return SimpleBedRoll.SetCandleFlameZ(z)
+end
+
+function sbr_flame_up(delta)
+    return SimpleBedRoll.NudgeCandleFlameZ(delta)
+end
+
+function sbr_flame_down(delta)
+    return SimpleBedRoll.NudgeCandleFlameZ(-1 * (tonumber(delta) or 0.01))
+end
+
+function sbr_flame_offset(right, forward, z)
+    return SimpleBedRoll.SetCandleFlameOffset(right, forward, z)
+end
+
 function sbr_remove()
     return SimpleBedRoll.RemoveFunctionalTestBed()
 end
@@ -805,4 +1096,8 @@ end
 
 function sbr_probe_entities(radius)
     return SimpleBedRoll.ProbeEntities(radius)
+end
+
+function sbr_test_lit_candle_prefab()
+    return SimpleBedRoll.SpawnLitCandlePrefab()
 end
