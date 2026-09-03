@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <Prefab Id="da23c351-21cd-4430-8dc9-fc8c459086b7">
 	<Objects>
-		<Object EntityClass="SimpleBedRoll_VisualAnchor" Id="c453f77d-396b-470e-8598-b49455d3615f" Name="SimpleBedRoll_VisualAnchor2" Pos="0.00390625,0.4938965,0.3773251" Type="Entity">
+		
+		<Object EntityClass="SimpleBedRoll_VisualAnchor" Id="c453f77d-396b-470e-8598-b49455d3615f" Name="CandleBody" Pos="0,0,0" Type="Entity">
 			<Properties object_Model="Objects/manmade/common_illumination/candle_a.cgf" UseMessage=" " />
-		</Object>
-		<Object ColorRGB="E2976" EntityClass="Light" Id="0a15ef3e-c360-46fe-9a61-380983c0ac6a" Name="Light3" Pos="-0.002502441,0.4949951,0.5898838" Type="Entity">
+		</Object><Object ColorRGB="E2976" EntityClass="Light" Id="0a15ef3e-c360-46fe-9a61-380983c0ac6a" Name="CandleLight" Pos="-0.006408691,0.0010986,0.2125587" Type="Entity">
 			<Properties fAttenuationBulbSize="0.1" Radius="2.5">
 				<Color fDiffuseMultiplier="0.004" fSpecularMultiplier="1.5" fVolumetricMultiplier="2" />
 				<Style fAnimationSpeed="0.5" nAnimationPhase="9" />
 			</Properties>
 		</Object>
-		<Object ColorRGB="E2976" EntityClass="ParticleEffect" Id="d9b2dd15-494a-4e7c-86ea-9d404e018113" Name="CandleLight" Pos="0,0.4968872,0.5911846" Rotate="0.6755902,0.7372773,0,0" Type="ParticleEntity">
+		<Object ColorRGB="E2976" EntityClass="ParticleEffect" Id="d9b2dd15-494a-4e7c-86ea-9d404e018113" Name="CandleFlame" Pos="-0.00390625,0.0029907,0.2138595" Rotate="0.6755902,0.7372773,0,0" Type="ParticleEntity">
 			<Properties ParticleEffect="WH_Particels.fires.candle" />
 		</Object>
 	</Objects>
