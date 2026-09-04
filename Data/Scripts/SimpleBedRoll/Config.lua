@@ -33,6 +33,11 @@ SimpleBedRoll_Config = {
             Path = "Data/Prefabs/simplebedroll/SBRCandleFullLitv1.xml",
             Guid = "da23c351-21cd-4430-8dc9-fc8c459086b7",
         },
+
+        CampControl = {
+            Path = "Data/Prefabs/simplebedroll/SBRCampControlv1.xml",
+            Guid = "0df7762e-d045-43fe-91e8-413b4b2912fa",
+        },
     },
 
     CampProps = {

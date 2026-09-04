@@ -4,6 +4,7 @@ Script.ReloadScript("Scripts/SimpleBedRoll/Config.lua")
 
 SimpleBedRoll = SimpleBedRoll or {}
 
+Script.ReloadScript("Scripts/SimpleBedRoll/Time.lua")
 Script.ReloadScript("Scripts/SimpleBedRoll/Placement.lua")
 Script.ReloadScript("Scripts/SimpleBedRoll/Environment.lua")
 Script.ReloadScript("Scripts/SimpleBedRoll/Bedding.lua")

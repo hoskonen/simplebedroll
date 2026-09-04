@@ -1,0 +1,4 @@
+<Entity
+    Name="SimpleBedRoll_CampControlTrigger"
+    Script="Scripts/Entities/SimpleBedRoll_CampControlTrigger.lua"
+/>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="us-ascii"?>
+<Prefab Id="0df7762e-d045-43fe-91e8-413b4b2912fa">
+	<Objects>
+		<Object EntityClass="SimpleBedRoll_VisualAnchor" Id="19da73f8-b0f3-4056-b498-dd441c9219c0" Name="Tongs" Pos="-0.4785156,0.2418823,0.1426811" Rotate="-0.4194517,0.5042796,0.4409551,0.6126345" Type="Entity">
+			<Properties object_Model="Objects/manmade/task_specific_props/metal_industry/smithing/tongs_a.cgf" />
+		</Object>
+		<Object EntityClass="SimpleBedRoll_CampControlTrigger" Id="b91e913a-d12c-4e20-abe3-04f1c555663c" Name="TongsTrigger" Pos="-0.3658752,0.5202637,0.070961" Scale="0.09278224,0.09278224,0.09278224" Type="Entity">
+			<Properties object_Model="objects/special/primitive_cube.cgf" />
+		</Object>
+		<Object EntityClass="SimpleBedRoll_VisualAnchor" Id="e255b348-e47c-439f-99ab-a86492e7b2ad" Name="RuralPlank" Pos="-0.003601074,-0.009613037,0.03697014" Rotate="0.6652185,-0.1869317,0.684768,0.2315893" Type="Entity">
+			<Properties object_Model="Objects/manmade/structures/logistical/fences/fence_rural_plank_a.cgf" />
+		</Object>
+	</Objects>
+</Prefab>

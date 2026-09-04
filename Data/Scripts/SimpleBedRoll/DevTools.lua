@@ -14,6 +14,14 @@ local LIT_CANDLE_PREFAB_PATH = tostring(
     litCandlePrefabConfig.Path
     or "Data/Prefabs/simplebedroll/SBRCandleFullLitv1.xml"
 )
+local campControlPrefabConfig = prefabConfig.CampControl or {}
+local CAMP_CONTROL_PREFAB_ID = tostring(
+    campControlPrefabConfig.Guid or "0df7762e-d045-43fe-91e8-413b4b2912fa"
+)
+local CAMP_CONTROL_PREFAB_PATH = tostring(
+    campControlPrefabConfig.Path
+    or "Data/Prefabs/simplebedroll/SBRCampControlv1.xml"
+)
 local BEDROLL_ITEM_CLASS_ID = "7f3f6a24-3b4d-4ec7-9a91-6d8e9f5a2c11"
 local TEST_LIGHT_ITEM_CLASSES = {
     { id = "643000ee-d9ad-4501-8e07-b8fb2dd9aaed", name = "loot_candle" },
@@ -604,6 +612,28 @@ function SimpleBedRoll.SpawnLitCandlePrefab()
     return spawned
 end
 
+function SimpleBedRoll.SpawnCampControlPrefab()
+    log(
+        "SpawnCampControlPrefab request prefabPath="
+        .. CAMP_CONTROL_PREFAB_PATH
+        .. " prefabId="
+        .. CAMP_CONTROL_PREFAB_ID
+    )
+
+    local spawned = SimpleBedRoll.SpawnTestPrefab(CAMP_CONTROL_PREFAB_ID)
+
+    log(
+        "SpawnCampControlPrefab result="
+        .. tostring(spawned)
+        .. " anchorId="
+        .. tostring(SBR.Test.anchor and SBR.Test.anchor.id or nil)
+        .. " prefabId="
+        .. tostring(SBR.Test.prefabGuid)
+    )
+
+    return spawned
+end
+
 function SimpleBedRoll.ProbePrefabApis(prefabGuid)
     prefabGuid = tostring(prefabGuid or "")
     prefabGuid = string.gsub(prefabGuid, "^%s+", "")
@@ -853,6 +883,7 @@ function SimpleBedRoll.Help()
     helpLog("sbr_give_light_items [quantity] [health] - add candle/lamp/lantern test items")
     helpLog("sbr_remove - remove the active bedroll")
     helpLog("sbr_status - report deployment entity state")
+    helpLog("sbr_time - report current game-world hour")
     helpLog("sbr_flame_z <z> - respawn only the candle flame with absolute local z")
     helpLog("sbr_flame_up [delta] - raise only the candle flame; default 0.01")
     helpLog("sbr_flame_down [delta] - lower only the candle flame; default 0.01")
@@ -864,11 +895,13 @@ function SimpleBedRoll.Help()
     helpLog(
         "#sbr_give_bedroll(quantity, health), #sbr_status(), #sbr_probe_entities(radius)"
     )
+    helpLog("#sbr_time(), #SimpleBedRoll.Time.GetHour()")
     helpLog("#sbr_flame_z(z), #sbr_flame_up(delta), #sbr_flame_down(delta)")
     helpLog("#sbr_give_light_items(quantity, health)")
     helpLog("Experimental prefab commands:")
     helpLog("sbr_test_prefab <guid>")
     helpLog("sbr_test_lit_candle_prefab - spawn " .. LIT_CANDLE_PREFAB_PATH)
+    helpLog("sbr_test_camp_control_prefab - spawn " .. CAMP_CONTROL_PREFAB_PATH)
     helpLog("sbr_probe_prefab <guid> - try prefab runtime APIs and log results")
     helpLog("sbr_test_status")
     helpLog("sbr_test_remove")
@@ -876,6 +909,7 @@ function SimpleBedRoll.Help()
         "#SimpleBedRoll.SpawnTestPrefab(\"guid\")"
     )
     helpLog("#sbr_test_lit_candle_prefab(), #SimpleBedRoll.SpawnLitCandlePrefab()")
+    helpLog("#sbr_test_camp_control_prefab(), #SimpleBedRoll.SpawnCampControlPrefab()")
     helpLog("#SimpleBedRoll.TestStatus()")
     helpLog("#SimpleBedRoll.RemoveTestPrefab()")
 
@@ -922,6 +956,7 @@ function SimpleBedRoll.RegisterDevCommands()
     registerDevCommand("sbr_spawn", "sbr_spawn()", "Simple Bedroll: deploy functional bedroll")
     registerDevCommand("sbr_remove", "sbr_remove()", "Simple Bedroll: remove active bedroll")
     registerDevCommand("sbr_status", "sbr_status()", "Simple Bedroll: deployment status")
+    registerDevCommand("sbr_time", "sbr_time()", "Simple Bedroll: report current game-world hour")
     registerDevCommand("sbr_give_bedroll", "sbr_give_bedroll(%%)", "Simple Bedroll: give bedroll item")
     registerDevCommand("sbr_give_hay", "sbr_give_hay()", "Simple Bedroll: give one CuraEqui small hay bundle")
     registerDevCommand("sbr_give_light_items", "sbr_give_light_items(%%)", "Simple Bedroll: give lighting test items")
@@ -932,6 +967,7 @@ function SimpleBedRoll.RegisterDevCommands()
     registerDevCommand("sbr_probe_entities", "sbr_probe_entities(%1)", "Simple Bedroll: scan nearby entities")
     registerDevCommand("sbr_test_prefab", "SimpleBedRoll.SpawnTestPrefab([[%1]])", "Simple Bedroll: spawn test prefab")
     registerDevCommand("sbr_test_lit_candle_prefab", "SimpleBedRoll.SpawnLitCandlePrefab()", "Simple Bedroll: spawn lit candle prefab")
+    registerDevCommand("sbr_test_camp_control_prefab", "SimpleBedRoll.SpawnCampControlPrefab()", "Simple Bedroll: spawn camp control prefab")
     registerDevCommand("sbr_probe_prefab", "SimpleBedRoll.ProbePrefabApis([[%1]])", "Simple Bedroll: probe prefab runtime APIs")
     registerDevCommand("sbr_test_status", "SimpleBedRoll.TestStatus()", "Simple Bedroll: test prefab status")
     registerDevCommand("sbr_test_remove", "SimpleBedRoll.RemoveTestPrefab()", "Simple Bedroll: remove test prefab")
@@ -1094,10 +1130,23 @@ function sbr_status()
     return SimpleBedRoll.FunctionalTestBedStatus()
 end
 
+function sbr_time()
+    if not SimpleBedRoll.Time or not SimpleBedRoll.Time.DebugLog then
+        log("time helper unavailable")
+        return false
+    end
+
+    return SimpleBedRoll.Time.DebugLog()
+end
+
 function sbr_probe_entities(radius)
     return SimpleBedRoll.ProbeEntities(radius)
 end
 
 function sbr_test_lit_candle_prefab()
     return SimpleBedRoll.SpawnLitCandlePrefab()
+end
+
+function sbr_test_camp_control_prefab()
+    return SimpleBedRoll.SpawnCampControlPrefab()
 end

@@ -1,8 +1,31 @@
 <?xml version="1.0" encoding="us-ascii"?>
 <database xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="barbora" xsi:noNamespaceSchemaLocation="InventoryPreset.xsd">
 	<InventoryPresets version="2" >
-	<!-- ========================= -->
-	<!-- Simple Bed Roll per-location presets -->
-	<!-- ========================= -->
+		<!-- ========================= -->
+		<!-- Bed Roll presets -->
+		<!-- ========================= -->
+		<InventoryPreset Name="inventory_shop_commonHuntsman">
+			<PresetItem Name="Bedroll" Amount="1" />
+		</InventoryPreset>
+
+		<InventoryPreset Name="inventory_shop_commonMerchant">
+			<PresetItem Name="Bedroll" Amount="1" />
+		</InventoryPreset>
+
+		<InventoryPreset Name="inventory_shop_commonSaddler">
+			<PresetItem Name="Bedroll" Amount="3" />
+		</InventoryPreset>
+
+		<!-- ========================= -->
+		<!-- Candle presets -->
+		<!-- ========================= -->
+
+		<InventoryPreset Name="inventory_shop_commonScribe">
+			<PresetItem Name="loot_candle" Amount="3" />
+		</InventoryPreset>
+
+		<InventoryPreset Name="inventory_shop_commonMerchant">
+			<PresetItem Name="loot_candle" Amount="4" />
+		</InventoryPreset>
 	</InventoryPresets>
 </database>
